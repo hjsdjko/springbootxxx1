@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>旧物回收管理系统</title>
+    <link rel="stylesheet" href="../static/modules/elementui/theme/index.css">
+    <link rel="stylesheet" href="../static/modules/animate.min.css">
+    <script src="../static/modules/wow.min.js"></script>
+    <link rel="stylesheet" href="../static/css/app.css">
+    <link rel="stylesheet" href="../static/css/index.css">
+    <script src="../static/modules/vue.min.js"></script>
+    <script src="../static/modules/elementui/index.js"></script>
+    <script src="../static/iconfont/iconfont.js"></script>
+</head>
+<body>
+<el-container id="page" v-cloak>
+    <el-main id="main">
+        <div class="login-wrapper">
+            <div class="form-name">旧物回收管理系统</div>
+            <el-form ref="form" :rules="rules" class="login-form" :model="form" size="small" >
+                <el-form-item prop="username" class="username">
+                    <template v-slot:label>
+                        <iconfont icon="el-icon-user"></iconfont>账号
+                    </template>
+                    <el-input v-model="form.username"></el-input>
+                </el-form-item>
+                <el-form-item prop="password" class="password">
+                    <template v-slot:label>
+                        <iconfont icon="el-icon-lock"></iconfont>密码
+                    </template>
+                    <el-input v-model="form.password" type="password"></el-input>
+                </el-form-item>
+                <el-form-item prop="code">
+                    <template v-slot:label>
+                        <iconfont icon="el-icon-folder-checked"></iconfont>验证码
+                    </template>
+                    <div class="code-row">
+                        <el-input v-model="form.code"></el-input>
+                        <div class="verif-code" @click="getRandCode(4)" :style="{'background-color':codes_bg}">
+                            <span :style="{color:item.color,transform:item.rotate,fontSize:item.size,padding: '0 3px',display:'inline-block'}"
+                                  v-for="(item, index) in codes" :key="index">{{ item.num }}</span>
+                        </div>
+                    </div>
+                </el-form-item>
+                <el-form-item label=" " class="remember">
+                    <el-checkbox v-model="remember">记住密码</el-checkbox>
+                </el-form-item>
+                <el-form-item v-if="roleList && roleList.length>1" class="roles" prop="role" label="用户类型">
+                    <el-select v-model="form.role">
+                        <el-option
+                                v-for="item in roleList"
+                                :key="item.roleName"
+                                :label="item.roleName"
+                                :value="item.roleName">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
+            <div class="btns">
+                <div class="loginBtn-wrapper">
+                    <el-button type="primary" class="login-btn" @click="login">登录</el-button>
+                </div>
+                <div class="registerBtn-wrapper">
+                    <el-button type="text" class="register-btn"
+                               @click="location.href='../page/yonghu/register.html'">
+                        用户注册
+                    </el-button>
+                </div>
+                <div class="faceBtn-wrapper">
+                </div>
+                <div class="forgetBtn-wrapper">
+                </div>
+            </div>
+        </div>
+    </el-main>
+</el-container>
+</body>
+<script src="../static/modules/axios.min.js"></script>
+<script src="../utils/http.js"></script>
+<script src="../utils/system.js"></script>
+<script src="../utils/global_mixin.js"></script>
+<script src="../utils/toolUtil.js"></script>
+
+<script src="../components/page-header.js"></script>
+<script>
+var vm = new Vue({
+    el: '#page',
+    data() {
+        const checkCode = (rule, value, callback)=>{
+            if (!value) {
+                return callback(new Error('请输入验证码'));
+            }
+            let trueCode = this.codes.map(item=>(item.num)).join('')
+            if(new RegExp(trueCode,'i').test(this.form.code)){
+                callback()
+            }
+            else{
+                callback(new Error('验证码错误'));
+            }
+        }
+        return {
+            remember:false,
+            roles: [],
+            form: {
+                username: '',
+                password: '',
+                role: '',
+            },
+            rules: {
+                username: [
+                    {required: true, message: '请输入用户名', trigger: 'blur'},
+                ],
+                password: [
+                    {required: true, message: '请输入密码', trigger: 'blur'}
+                ],
+                role: [
+                    { required: true, message: '请选择用户类型', trigger: 'change' }
+                ],
+                code:[
+                    {required:true, validator:checkCode, trigger: 'blur'}
+                ]
+            },
+            menus: [],
+            roleList: [],
+            codes:[{
+                num: 1,
+                color: '#000',
+                rotate: '10deg',
+                size: '16px'
+            }, {
+                num: 2,
+                color: '#000',
+                rotate: '10deg',
+                size: '16px'
+            }, {
+                num: 3,
+                color: '#000',
+                rotate: '10deg',
+                size: '16px'
+            }, {
+                num: 4,
+                color: '#000',
+                rotate: '10deg',
+                size: '16px'
+            }],
+            codes_bg:"rgba(256,256,256,1)",
+        }
+    },
+    watch: {
+        showType(n){
+            if(!n){
+                this.stopNavigator()
+            }
+        }
+    },
+    computed: {
+        roleIndex() {
+            return this.roleList.findIndex(item => {
+                return item.roleName == this.form.role
+            })
+        }
+    },
+    created() {
+        const rememberStr = localStorage.getItem('sys_front_remember')
+        if(rememberStr){
+            try {
+                this.remember = true
+                const passArr = decodeURIComponent(atob(rememberStr)).split(',')
+                this.form.username = passArr[0]
+                this.form.password = passArr[1]
+            }catch (e){
+                console.log(e)
+            }
+        }
+        this.init()
+    },
+    methods: {
+        getRandCode(len = 4){
+            this.randomString(len)
+            this.codes_bg = this.randomColor(0.3)
+        },
+        randomString(len = 4){
+            let chars = [
+                "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k",
+                "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v",
+                "w", "x", "y", "z", "A", "B", "C", "D", "E", "F", "G",
+                "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R",
+                "S", "T", "U", "V", "W", "X", "Y", "Z", "0", "1", "2",
+                "3", "4", "5", "6", "7", "8", "9"
+            ]
+            let sizes = ['14', '15', '16', '17', '18']
+
+            // let output = [];
+            for (let i = 0; i < len; i++) {
+                // 随机验证码
+                let key = Math.floor(Math.random() * chars.length)
+                this.codes[i].num = chars[key]
+                this.codes[i].color = this.randomColor()
+                // 随机验证码方向
+                let rotate = Math.floor(Math.random() * 60)
+                let plus = Math.floor(Math.random() * 2)
+                if (plus == 1) rotate = '-' + rotate
+                this.codes[i].rotate = 'rotate(' + rotate + 'deg)'
+                // 随机验证码字体大小
+                let size = Math.floor(Math.random() * sizes.length)
+                this.codes[i].size = sizes[size] + 'px'
+            }
+        },
+        randomColor(A=1){
+            const r = Math.floor(Math.random()*256);
+            const g = Math.floor(Math.random()*256);
+            const b = Math.floor(Math.random()*256);
+            return `rgba(${r},${g},${b},${A})`;
+        },
+        init(){
+            this.getMenu()
+            this.getRandCode()
+        },
+        getMenu() {
+            http.get('menu/list', {
+                params: {
+                    page: 1,
+                    limit: 1,
+                    sort: 'id',
+                }
+            }).then(res => {
+                let menus = JSON.parse(res.data.data.list[0].menujson)
+                this.roleList = menus.filter(item => {
+                    return item.hasFrontLogin == "是"
+                })
+                if(this.roleList.length==1){
+                    this.form.role = this.roleList[0].roleName
+                }
+            })
+        },
+        async login() {
+            this.$refs["form"].validate(async (valid) => {
+                if (!valid) return false
+                const data = {
+                    username: this.form.username,
+                    password: this.form.password,
+                    chk: this.form.role
+                }
+                const config = {
+                    headers: {
+                        "Content-Type": "multipart/form-data"   //以form表单形式提交
+                    }
+                }
+                try {
+                    let res = await http.get(`${this.roleList[this.roleIndex].tableName}/login`, {
+                        params:data
+                    }, config)
+                    this.onLoginSuccess(res.data.token)
+                } catch (e) {
+                    this.getRandCode()
+                }
+
+            })
+        },
+        onLoginSuccess(token) {
+            this.$message.success("登录成功")
+            if(this.remember){
+                localStorage.setItem('sys_front_remember',btoa(encodeURIComponent(`${this.form.username},${this.form.password}`)))
+            }else{
+                localStorage.removeItem('sys_front_remember')
+            }
+            toolUtil.storageSet('sessionTable', this.roleList[this.roleIndex].tableName);
+            toolUtil.storageSet('username', this.form.username);
+            toolUtil.storageSet('Token', token);
+            toolUtil.storageSet('role', this.form.role);
+            toolUtil.storageSet('menuList', JSON.stringify(this.roleList[this.roleIndex].backMenu))
+            http.get(`${this.roleList[this.roleIndex].tableName}/session`).then(res => {
+                toolUtil.storageSet('userInfo', JSON.stringify(res.data.data));
+                toolUtil.storageSet('userid', res.data.data.id)
+                setTimeout(() => {
+                    let redirect = toolUtil.getUrlParamsByKey("redirect")
+                    let func = toolUtil.getUrlParamsByKey("func")
+                    if(func){
+                        return eval(encodeURIComponent(func))
+                    }
+                    if(redirect){
+                        location.replace(decodeURIComponent(redirect))
+                    }else{
+                        location.replace('../page/index.html')
+                    }
+                }, 1000)
+            })
+        },
+    }
+})
+</script>
+<script>
+//须先设置css盒子的animation-duration
+
+new WOW({
+    //boxClass: 'search-box', //目标dom的class
+    //animateClass: 'animate__fadeInDown', //动画名
+}).init()
+
+
+</script>
+<style>
+
+
+
+#page {
+}
+
+
+#main{
+    background: url("http://clfile.zggen.cn/20240425/a990ef2f9ea64931be5d814b21357702.png") no-repeat center center / cover;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+.login-wrapper{
+    background: url() no-repeat left center / 600px 100%;
+    box-sizing: border-box;
+    padding: 0;
+    width: 660px;
+    min-height:500px;
+    border: 0px solid rgb(255, 255, 255);
+    z-index: 1;
+   box-shadow:0px 0px 0px #999;
+}
+
+
+.login-wrapper .form-name{
+    padding: 0;
+    margin: 0px 0px 20px;
+    color: #fff;
+    background: url(http://clfile.zggen.cn/20240425/c28b10deaf4640bba7b6456274e3d3b8.png) no-repeat center top / 100% 100%;
+    width: 100%;
+    font-size: 16px;
+    height: 50px;
+    line-height: 40px;
+    text-align: center;
+}
+
+
+.login-form{
+    padding: 40px 0 0;
+    background: #fff;
+}
+
+
+.login-form .el-form-item {
+    display:flex;
+    margin-bottom:0px!important;
+    padding-bottom:30px!important;
+}
+
+
+.login-form label.el-form-item__label {
+    min-width: 150px;
+}
+
+
+.login-form .el-form-item__content {
+    width: calc(100% - 250px);
+}
+
+
+.login-form .el-input__inner{
+    border:1px solid #eee;
+    border-radius:0px;
+}
+
+.login-form .el-input__inner:hover,.login-form .el-input__inner:focus{
+    border:var(--hover-border);
+}
+
+
+.el-select-dropdown {
+    min-width: auto !important;
+}
+.el-select-dropdown__item.hover,.el-select-dropdown__item:hover {
+    background: #f5f7fa;
+}
+.el-select-dropdown__item.selected {
+    color: var(--swiper-theme-color);
+    font-weight: 600;
+}
+.el-select .el-input.is-focus .el-input__inner {
+    border-color: var(--swiper-theme-color);
+}
+
+
+
+.code-row {
+    display:flex;
+}
+
+
+.code-row .verif-code {
+    width: 100px;
+    text-align: center;
+    margin-left: 10px;
+    white-space: nowrap;
+    user-select: none;
+}
+
+
+
+.btns {
+  width:100%;
+  background: #fff;
+  padding:0 0 40px;
+  display:flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+
+.loginBtn-wrapper{
+  display:inline-block;
+  width: auto;
+}
+.btns .login-btn {
+    width: auto;
+    margin:0 10px 10px 150px;
+    height:40px;
+    line-height:1;
+    font-size:16px;
+    color:#fff;
+    letter-spacing: 4px;
+    background:var(--swiper-theme-color);
+    text-align:center;
+    border:0;
+    border-radius:0px;
+}
+.btns .login-btn:focus,.btns .login-btn:hover {
+    background:var(--swiper-theme-color);
+    border-color: #333;
+    color: #fff;
+}
+
+
+.faceBtn-wrapper{
+    display:inline-block;
+    width: auto;
+}
+.faceBtn-wrapper .el-button {
+    width: auto;
+}
+
+
+.btns .face-btn {
+    width: auto;
+    line-height:1;
+    font-size:16px;
+    text-align:center;
+    border-radius:0px;
+    background:none;
+    border-color: #999;
+    color:#333;
+    padding:0 10px;
+    height:40px;
+    line-height:40px;
+    margin:0 10px 10px 0;
+    border: none!important;
+}
+.btns .face-btn:focus,.btns .face-btn:hover {
+    border-color: #999;
+    background:none;
+    color:#333;
+}
+
+
+.registerBtn-wrapper {
+    background:none;
+    display:inline-block;
+    width: auto;
+ }
+
+.registerBtn-wrapper .el-button{
+    border-radius:0px;
+    background:none;
+    border-color: #999;
+    color:#333;
+    font-size:16px;
+    margin:0 10px 10px 0;
+    padding:0 10px;
+    height:40px;
+    line-height:40px;
+    border: none!important;
+}
+.registerBtn-wrapper .el-button:hover{
+    border-radius:0px;
+    border-color: #999;
+    background:none;
+    color:#333;
+    padding:0 10px;
+
+}
+
+
+.forgetBtn-wrapper {
+    background:none;
+    display:inline-block;
+    width: auto;
+}
+
+.forgetBtn-wrapper .el-button{
+    border-radius:0px;
+    background:none;
+    border-color: #999;
+    color:#888;
+    font-size:16px;
+    margin:0 10px 10px 0;
+    padding:0 10px;
+    height:40px;
+    line-height:40px;
+    border: none!important;
+}
+.forgetBtn-wrapper .el-button:hover{
+    border-radius:0px;
+    border-color: #999;
+    background:none;
+    color:#333;
+    padding:0 10px;
+
+}
+
+#main {
+    background-image: url(http://clfile.zggen.cn/20240425/da1e70a7c3dc4efcbaf03cd494b44724.webp);
+}
+
+</style>
+</html>

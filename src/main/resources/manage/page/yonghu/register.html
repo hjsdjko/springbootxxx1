@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>注册</title>
+    <link rel="stylesheet" href="../../static/modules/elementui/theme/index.css">
+    <link rel="stylesheet" href="../../static/css/app.css">
+    <link rel="stylesheet" href="../../static/modules/animate.min.css">
+    <script src="../../static/modules/wow.min.js"></script>
+    <script src="../../static/modules/vue.min.js"></script>
+    <script src="../../static/modules/elementui/index.js"></script>
+    <script src="../../static/iconfont/iconfont.js"></script>
+</head>
+<body>
+<div id="page" v-cloak>
+    <div class="register-wrapper">
+        <div class="from-name">注册</div>
+        <el-form ref="registerForm" class="register-form" :model="registerForm" >
+            <el-form-item label="用户账号" class="input-row">
+                <el-input v-model="registerForm.yonghuzhanghao"
+                          placeholder="请输入用户账号"
+                          type="text"
+                ></el-input>
+            </el-form-item>
+            <el-form-item label="用户密码" class="input-row">
+                <el-input v-model="registerForm.yonghumima" placeholder="用户密码" type="password" autocomplete="new-password"></el-input>
+            </el-form-item>
+            <el-form-item label="确认用户密码" class="input-row">
+                <el-input v-model="registerForm.yonghumima2" placeholder="用户密码" type="password" autocomplete="new-password"></el-input>
+            </el-form-item>
+            <el-form-item label="用户姓名" class="input-row">
+                <el-input v-model="registerForm.yonghuxingming"
+                          placeholder="请输入用户姓名"
+                          type="text"
+                ></el-input>
+            </el-form-item>
+            <el-form-item label="头像" class="upload-img-row">
+                <file-upload
+                        tip="点击上传头像"
+                        action="file/upload"
+                        :limit="3"
+                        :multiple="true"
+                        :file-urls="registerForm.touxiang?registerForm.touxiang:''"
+                        @change="touxiangUploadSuccess"
+                ></file-upload>
+            </el-form-item>
+    <el-form-item label="性别" class="select-row">
+        <el-select
+                class="list_sel"
+                v-model="registerForm.xingbie"
+                placeholder="请选择性别"
+        >
+        <el-option v-for="item in yonghuxingbieLists" :label="item" :value="item"></el-option>
+    </el-select>
+    </el-form-item class="radio-row">
+            <el-form-item label="手机号码" class="input-row">
+                <el-input v-model="registerForm.shoujihaoma"
+                          placeholder="请输入手机号码"
+                          type="text"
+                ></el-input>
+            </el-form-item>
+        </el-form>
+        <div class="btn-row">
+            <el-button class="register-btn" type="primary" @click="handleRegister">注册</el-button>
+        </div>
+    </div>
+</div>
+</body>
+<script src='../../static/modules/axios.min.js'></script>
+<script src="../../utils/http.js"></script>
+<script src="../../utils/toolUtil.js"></script>
+<script src="../../utils/global_mixin.js"></script>
+<script src="../../components/FileUpload.js"></script>
+<script>
+    var vm = new Vue({
+        el: '#page',
+        data(){
+            return {
+                registerForm:{
+                    xingbie: '',
+                },
+                yonghuxingbieLists:[],
+            }
+        },
+        created(){
+            this.init()
+        },
+        methods: {
+            init(){
+                    this.yonghuxingbieLists = "男,女".split(',')
+            },
+            touxiangUploadSuccess(fileUrls){
+                this.registerForm.touxiang = fileUrls;
+            },
+            // 多级联动参数
+            //公共方法
+            getUUID(){
+                return new Date().getTime();
+            },
+
+            handleRegister(){
+                let url = "yonghu/register";
+                if((!this.registerForm.yonghuzhanghao)){
+                    this.$message.error(`用户账号不能为空`)
+                    return false
+                }
+                if((!this.registerForm.yonghumima)){
+                    this.$message.error(`用户密码不能为空`)
+                    return false
+                }
+    if(!this.registerForm.yonghumima2){
+        return this.$message.error('请确认用户密码')
+    }
+    if(this.registerForm.yonghumima!=this.registerForm.yonghumima2){
+        return this.$message.error('两次输入的用户密码不一致')
+    }
+                if((!this.registerForm.yonghuxingming)){
+                    this.$message.error(`用户姓名不能为空`)
+                    return false
+                }
+                if(this.registerForm.touxiang!=null){
+                    this.registerForm.touxiang = this.registerForm.touxiang.replace(new RegExp(baseUrl,"g"),"");
+                }
+                if(this.registerForm.shoujihaoma&&(!toolUtil.isMobile(this.registerForm.shoujihaoma))){
+                    this.$message.error(`手机号码应输入手机格式`)
+                    return false
+                }
+                http.post(url,this.registerForm).then(res=>{
+                    this.$message.success('注册成功')
+                    setTimeout(()=>{
+                        location.replace('../login.html')
+                    },1000)
+                })
+            },
+        },
+
+    })
+</script>
+<style>
+/*总盒子*/
+#page{
+    background: url("http://clfile.zggen.cn/20240103/6a98d033f35546aa90c83f878fd63bbb.jpg") no-repeat center center / 100% 100%;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/*注册表单总盒子*/
+.register-wrapper{
+    width: 650px;
+    min-height:400px;
+    border: 1px solid rgb(255, 255, 255);
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(207,235,249,.9) 0%, rgba(144,189,220,.9) 100%);
+    padding: 0 0px 20px;
+    box-shadow:0px 0px 0px #999;
+    margin: 80px auto 40px;
+}
+
+/*标题盒子*/
+.register-wrapper .from-name{
+    padding: 0px 0px;
+    margin: 0px 0 20px;
+    width: 100%;
+    color: #0e3d8b;
+    font-size: 30px;
+    font-weight:600;
+    line-height: 40px;
+    text-align: center;
+    letter-spacing:5px;
+    animation-name: fadeInDown;
+    animation-duration: 1s;
+    background: -webkit-linear-gradient(#1cbbc1, blue);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: #ffffff;
+    -webkit-text-stroke: 6px transparent;
+    position:relative;
+    top:-60px;
+}
+
+/*表单盒子*/
+.register-form{
+    padding: 0px 40px;
+}
+
+/*item盒子*/
+.register-form .el-form-item {
+    display:flex;
+    width: 100%;
+    background:none;
+    margin:0 0 2px;
+    animation-name: fadeInUp;
+    animation-duration: 1s;
+}
+
+/*label标签*/
+.register-form .el-form-item__label {
+    min-width: 150px;
+}
+
+/*item内容盒子*/
+.register-form .el-form-item__content {
+    width: calc(100% - 250px);
+    line-height:32px;
+}
+
+/*日期*/
+.register-form .el-date-editor{
+    width: 100%!important;
+}
+
+/*输入框*/
+.register-form .el-input__inner{
+
+}
+.register-form .el-input__inner:hover,.register-form .el-input__inner:focus{
+
+}
+.register-form .el-select .el-input__inner {
+
+}
+.el-select .el-input__inner:hover,.el-select .el-input__inner:focus {
+
+}
+
+/*日期*/
+.register-form .el-date-editor{
+  width: 100%;    
+}
+
+/*下拉框*/
+.register-form .el-select{
+width: 100%;  
+}
+
+/*下拉框图标*/
+.el-input__icon {
+    width: 25px;
+    line-height: 32px
+}
+
+/*上传文件按钮*/
+.register-form .el-upload .el-button{
+    border-radius:20px;
+}
+.register-form .el-upload .el-button:hover{
+    background:#fff;
+}
+
+/*上传图片*/
+.register-form .el-upload-list__item.is-success {
+    width: 120px;
+    height: 80px;
+    border-radius:0;
+}
+.register-form .el-upload.el-upload--picture-card {
+    width: 120px;
+    height: 80px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border-radius:0;
+}
+.el-upload-list--picture-card .el-upload-list__item-status-label {
+    background: var(--swiper-theme-color);
+}
+
+/*多选*/
+.el-checkbox__input.is-checked .el-checkbox__inner,.el-checkbox__input.is-indeterminate .el-checkbox__inner {
+}
+.el-checkbox__inner:hover {
+}
+.el-checkbox__input.is-checked+.el-checkbox__label {
+}
+
+/*单选*/
+.el-radio__input.is-checked .el-radio__inner {
+}
+.el-radio__inner:hover {
+}
+.el-radio__input.is-checked+.el-radio__label {
+}
+
+/*验证码盒子*/
+.code-row-value{
+    width: 100%;
+    display: flex;
+}
+/*获取验证码按钮*/
+.code-row .el-button{
+    border:0;
+    margin:0 0 0 20px;
+    padding:0 10px;
+}
+.code-row .el-button:hover{
+    color:var(--swiper-theme-color);
+    background:#fff;
+}
+
+/*注册按钮盒子*/
+.btn-row{
+    display: flex;
+    justify-content: center;
+}
+/*注册按钮*/
+.register-btn{
+    width: 120px;
+    color:#fff;
+    background:var(--swiper-theme-color);
+    border:0;
+    border-radius:20px;
+    margin-top: 20px;
+    font-size: 16px;
+    transiton: all 0.5s;
+    animation-name: fadeInUp;
+    animation-duration: 2s;
+}
+.register-btn:hover{
+    background:#333;
+    color:#fff;
+}
+
+</style>
+</html>

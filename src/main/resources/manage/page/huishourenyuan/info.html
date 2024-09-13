@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>回收人员</title>
+    <link rel="stylesheet" href="../../static/modules/elementui/theme/index.css">
+    <link rel="stylesheet" href="../../static/css/app.css">
+    <link rel="stylesheet" href="../../static/css/index.css">
+    <link rel="stylesheet" href="../../static/modules/animate.min.css">
+    <script src="../../static/modules/wow.min.js"></script>
+    <script src="../../static/modules/vue.min.js"></script>
+    <script src="../../static/modules/vue.min.js"></script>
+    <script src="../../static/modules/elementui/index.js"></script>
+    <script src="../../static/iconfont/iconfont.js"></script>
+</head>
+<body>
+<el-container id="page" v-cloak>
+    <el-header height="auto">
+        <page-header></page-header>
+    </el-header>
+    <el-container>
+        <page-aside>
+            <template v-slot:menu>
+                <page-menus></page-menus>
+            </template>
+        </page-aside>
+        <el-main>
+            <div class="child-page">
+                <el-form ref="form" :model="user" class="form" label-width="120px" style="margin: 20px 0;">
+                    <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="人员账号" prop="renyuanzhanghao">
+                                    <el-input class="list_inp" v-model="user.renyuanzhanghao" disabled placeholder="人员账号" clearable />
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="24">
+                                <el-form-item label="人员姓名" prop="renyuanxingming">
+                                    <el-input class="list_inp" v-model="user.renyuanxingming"  placeholder="人员姓名" clearable />
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="24">
+                                <el-form-item label="头像" prop="touxiang">
+                                    <file-upload
+                                            tip="点击上传头像"
+                                            action="file/upload"
+                                            :limit="3"
+                                            :file-urls="user.touxiang?user.touxiang:''"
+                                            @change="huishourenyuantouxiangUploadSuccess">
+                                    ></file-upload>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="24">
+                                <el-form-item label="性别" prop="xingbie">
+                                        <el-select
+                                                class="list_sel"
+                                                v-model="user.xingbie"
+                                                placeholder="请选择性别"
+                                        >
+
+                                        <el-option v-for="item in huishourenyuanxingbieLists" :label="item" :value="item"></el-option>
+                                    </el-select>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="24">
+                                <el-form-item label="手机号码" prop="shoujihaoma">
+                                    <el-input class="list_inp" v-model="user.shoujihaoma"  placeholder="手机号码" clearable />
+                                </el-form-item>
+                            </el-col>
+                        <div class="btn-row" style="text-align: center">
+                            <el-button class='userinfo_confirm' type="primary" @click="onSubmit">保存</el-button>
+                        </div>
+                    </el-row>
+                </el-form>
+            </div>
+        </el-main>
+    </el-container>
+</el-container>
+</body>
+<script src="../../static/modules/axios.min.js"></script>
+<script src="../../utils/http.js"></script>
+<script src="../../utils/toolUtil.js"></script>
+<script src="../../utils/global_mixin.js"></script>
+<!--引入组件-->
+<script src="../../components/pageHeader.js"></script>
+<script src="../../components/pageMenus.js"></script>
+<script src="../../components/pageAside.js"></script>
+<script src="../../components/FileUpload.js"></script>
+<script>
+    var vm = new Vue({
+        el: '#page',
+        data(){
+            return {
+                user:{
+                                renyuanzhanghao:null,
+                                renyuanxingming:null,
+                                touxiang:null,
+                                xingbie:null,
+                                shoujihaoma:null,
+                },
+                        huishourenyuanxingbieLists:[],
+            }
+        },
+        mounted(){
+            this.getInfo()
+        },
+        methods: {
+            init(){
+                        this.huishourenyuanxingbieLists = "男,女".split(',')
+            },
+                    huishourenyuantouxiangUploadSuccess(fileUrls){
+                        this.user.touxiang = fileUrls;
+                    },
+            onSubmit(){
+                        if(!this.user.renyuanzhanghao){
+                            return this.$message.error('人员账号不能为空')
+                        }
+                        if(!this.user.mima){
+                            return this.$message.error('密码不能为空')
+                        }
+                        if(!this.user.renyuanxingming){
+                            return this.$message.error('人员姓名不能为空')
+                        }
+                        if(this.user.touxiang!=null){
+                            this.user.touxiang = this.user.touxiang.replace(new RegExp(baseUrl,"g"),"");
+                        }
+                        if((this.user.shoujihaoma)&& !toolUtil.isMobile(this.user.shoujihaoma) ){
+                            return this.$message.error('手机号码应输入手机格式')
+                        }
+                http.post('huishourenyuan/update',this.user).then(res=>{
+                    this.$message.success('修改成功')
+                })
+            },
+            getInfo(){
+                http.get('huishourenyuan/session').then(res=>{
+                    for(let key in res.data.data){
+                        this.user[key] = res.data.data[key]
+                    }
+                    this.init()
+                })
+            },
+        }
+    })
+</script>
+</html>

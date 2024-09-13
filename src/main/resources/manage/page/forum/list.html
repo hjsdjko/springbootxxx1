@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>论坛交流</title>
+    <link rel="stylesheet" href="../../static/modules/elementui/theme/index.css">
+    <link rel="stylesheet" href="../../static/css/app.css">
+    <link rel="stylesheet" href="../../static/css/index.css">
+    <link rel="stylesheet" href="../../static/css/formComponent.css">
+    <link rel="stylesheet" href="../../static/modules/animate.min.css">
+    <script src="../../static/modules/wow.min.js"></script>
+    <script src="../../static/modules/vue.min.js"></script>
+    <script src="../../static/modules/elementui/index.js"></script>
+    <script src="../../static/iconfont/iconfont.js"></script>
+</head>
+<body>
+<el-container id="page" v-cloak>
+    <el-header height="auto">
+        <page-header page-name="论坛交流"></page-header>
+    </el-header>
+    <el-container>
+        <page-aside>
+            <template v-slot:menu>
+                <page-menus></page-menus>
+            </template>
+        </page-aside>
+            <el-main>
+                <div class="child-page">
+                    <div v-if="forumChild" class="back-row">
+                        <el-button @click="searchClick()">返回</el-button>
+                    </div>
+                    <el-form :model="searchQuery" class="list-query-row" v-if="!forumChild" >
+                        <el-form-item class="query-input" label="帖子标题">
+                            <el-input v-model="searchQuery.title"
+                                      placeholder="帖子标题"
+                                      size="small"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item class="query-input" label="帖子内容">
+                            <el-input v-model="searchQuery.content"
+                                      placeholder="帖子内容"
+                                      size="small"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item class="query-btn">
+                            <el-button type="primary" @click="searchClick()" size="small">搜索</el-button>
+                        </el-form-item>
+                    </el-form>
+                    <div class="btns-row">
+                        <el-button type="success" @click="addClick" v-if="btnAuth('forum','新增')" class="add">新增</el-button>
+                        <el-button class="edit"
+                                   :type="selRows.length==1?'primary':''"
+                                   :disabled="selRows.length==1?false:true"
+                                   @click="editClick"
+                                   v-if="!forumChild &&  btnAuth('forum','修改')">修改</el-button>
+                        <el-button class="del"
+                                   :type="selRows.length?'danger':''"
+                                   :disabled="selRows.length?false:true"
+                                   @click="delClick(null)"
+                                   v-if="btnAuth('forum','删除')">删除</el-button>
+                    </div>
+                    <div class="table-wrapper">
+                        <el-table
+                                v-loading="listLoading"
+                                @selection-change="handleSelectionChange"
+                                ref="table"
+                                :data="list"
+                                @row-click="listChange"
+                                :border="false" :fit="true" :stripe="false" >
+                            <el-table-column type="selection" width="55" class-name="selection-column"></el-table-column>
+                            <el-table-column label="序号" width="70" align="center" class-name="num-column">
+                                <template slot-scope="scope">{{ scope.$index + 1}}</template>
+                            </el-table-column>
+                            <el-table-column
+                                            v-if="!forumChild"
+                                    label="帖子标题">
+                                <template slot-scope="scope">
+                                    {{scope.row.title}}
+                                </template>
+                            </el-table-column>
+                            <el-table-column v-if="forumChild" label="内容">
+                                <template slot-scope="scope">
+                                    <span v-html="scope.row.content"></span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column
+                                    label="父节点id">
+                                <template slot-scope="scope">
+                                    {{scope.row.parentid}}
+                                </template>
+                            </el-table-column>
+                            <el-table-column
+                                    label="用户名">
+                                <template slot-scope="scope">
+                                    {{scope.row.username}}
+                                </template>
+                            </el-table-column>
+                            <el-table-column
+                                            v-if="!forumChild"
+                                    label="状态">
+                                <template slot-scope="scope">
+                                    {{scope.row.isdone}}
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作" width="200" class-name="option-column">
+                                <template slot-scope="scope">
+                                    <el-button size="mini" type="primary" class="some ckpl" v-if="!forumChild" @click="searchClick(scope.row.id)">查看评论</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                    <el-pagination class="pagination"
+                                   :total="total"
+                                   :page-size="listQuery.limit"
+                                   @size-change="sizeChange"
+                                   @current-change="currentChange"
+                                   @prev-click="prevClick"
+                                   @next-click="nextClick"
+                                   layout="prev, pager, next" next-text="下一页" prev-text="上一页" ></el-pagination>
+                </div>
+                <forum-form ref="formRef" @change="formModelChange"></forum-form>
+            </el-main>
+    </el-container>
+</el-container>
+</body>
+<script src="../../static/modules/axios.min.js"></script>
+<script src="../../utils/http.js"></script>
+<script src="../../utils/toolUtil.js"></script>
+<script src="../../utils/global_mixin.js"></script>
+<!--引入组件-->
+<script src="../../components/pageHeader.js"></script>
+<script src="../../components/pageMenus.js"></script>
+<script src="../../components/pageAside.js"></script>
+<script src="formComponent.js"></script>
+<script>
+    var vm = new Vue({
+        el: '#page',
+        data(){
+            return {
+                userInfo:{},
+                tableName:'forum',
+                listLoading:false,
+                listQuery:{
+                    page: 1,
+                    limit: 20,
+                    sort: 'id',
+                    order: 'desc'
+                },
+                searchQuery:{},
+                forumChild:false,
+                total:0,    //记录总条数
+                list:null,  //列表数据
+                selRows:[], //选中的记录
+            }
+        },
+        created(){
+            let menuJump = toolUtil.getUrlParamsByKey("menuJump")
+            if(menuJump){
+                this.orderStatus = menuJump
+            }else{
+                this.orderStatus = "全部"
+            }
+            this.init()
+        },
+        methods: {
+            init(){
+                this.getList()
+            },
+            formModelChange(){
+                this.searchClick()
+            },
+            listChange(row){
+            this.$nextTick(()=>{
+                this.$refs['table'].clearSelection()
+                this.$refs['table'].toggleRowSelection(row)
+                })
+            },
+            getList(id){
+                this.listLoading = true
+                let params = JSON.parse(JSON.stringify(this.listQuery))
+                params['sort'] = 'id'
+                params['parentid'] = 0
+                if(id){
+                    params['parentid'] = id
+                }
+                if(this.searchQuery.title&&this.searchQuery.title!=''){
+                    params['title'] = '%' + this.searchQuery.title + '%'
+                }
+                http.get(`forum/page`,{params}).then(res=>{
+                    this.list = res.data.data.list
+                    this.total = Number(res.data.data.total)
+                    this.listLoading = false
+                })
+            },
+            //删
+            delClick(id){
+                let ids = []
+                if (id) {
+                    ids = [id]
+                } else {
+                    if (this.selRows.length) {
+                        for (let x in this.selRows) {
+                            ids.push(this.selRows[x].id)
+                        }
+                    } else {
+                        return false
+                    }
+                }
+                this.$confirm(`是否删除选中论坛交流`, '提示', {
+                    confirmButtonText: '是',
+                    cancelButtonText: '否',
+                    type: 'warning'
+                }).then(()=>{
+                    http.post(`forum/delete`,ids).then((res)=>{
+                    this.$message.success('操作成功')
+                        this.getList()
+                    })
+                })
+            },
+
+            //多选
+            handleSelectionChange(e){
+                this.selRows = e
+            },
+            //列表数据
+            //分页
+            sizeChange(size){
+                this.listQuery.limit = size
+                this.getList()
+            },
+            currentChange(page){
+                this.listQuery.page = page
+                this.getList()
+            },
+            prevClick(){
+                this.listQuery.page = this.listQuery.page - 1
+                this.getList()
+            },
+            nextClick(){
+                this.listQuery.page = this.listQuery.page + 1
+                this.getList()
+            },
+            searchClick(id){
+                if(id){
+                    this.forumChild = true;
+                }else{
+                    this.forumChild = false
+                }
+                this.listQuery.page = 1
+                this.getList(id)
+            },
+            addClick(){
+                this.$refs['formRef'].init()
+            },
+            //权限验证
+            btnAuth(e,a){
+                return toolUtil.isAuth(e,a)
+            },
+            infoClick(id=null){
+                if(id){
+                    this.$refs['formRef'].init(id,'info')
+                }else if(this.selRows.length){
+                    this.$refs['formRef'].init(this.selRows[0].id,'info')
+                }
+            },
+            editClick(){
+                if(this.selRows.length){
+                    this.$refs['formRef'].init(this.selRows[0].id,'edit')
+                }
+            },
+            spiderClick(){
+
+            },
+            download(file){
+                if(!file){
+                    this.$message.error('文件不存在')
+                }
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.setAttribute('target', '_blank');
+                file && a.setAttribute('download', file);
+                a.href = baseUrl + file;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            },
+        }
+    })
+</script>
+<style>
+/*返回按钮盒子*/
+.back-row {
+    margin-bottom: 20px;
+    animation-name: fadeInUp;
+    animation-duration: 1s;
+}
+.back-row>button {
+    padding: 0px 12px;
+    font-size: 14px;
+    border-radius:0px;
+}
+.back-row>button:focus,.back-row>button:hover {
+    color: #56c68b;
+    border-color: #56c68b50;
+    background: #56c68b10;
+}
+.back-row>button:active {
+    color: #56c68b;
+    border-color: #56c68b50;
+    outline: none;
+}
+
+/*订单状态总盒子*/
+.state-tabs{
+    background:none;
+    margin-bottom:0px;
+    border: 0px;
+    animation-name: fadeInUp;
+    animation-duration: 1s;
+}
+.el-tabs--card>.el-tabs__header {
+    margin:0px;
+    border-bottom: 0px solid #dfe4ed;
+}
+/*订单状态盒子*/
+.el-tabs--card>.el-tabs__header .el-tabs__nav {
+    border: 0px solid #dfe4ed;
+}
+/*订单状态item*/
+.el-tabs--card>.el-tabs__header .el-tabs__item {
+    background:#fff;
+    border: 1px solid #ddd;
+    margin-right:20px;
+    height: 32px;
+    line-height: 32px;
+    transition: all 0s;
+}
+.el-tabs--card>.el-tabs__header .el-tabs__item:hover {
+    color: #fff;
+    border-color: var(--swiper-theme-color);
+    background: var(--swiper-theme-color);
+}
+.el-tabs--card>.el-tabs__header .el-tabs__item:first-child {
+   border-left: 1px solid #ddd;
+}
+.el-tabs--card>.el-tabs__header .el-tabs__item:first-child:hover {
+   border-left: 1px solid var(--swiper-theme-color);
+}
+.el-tabs--card>.el-tabs__header .el-tabs__item.is-active {
+    color: #fff;
+    border-color: var(--swiper-theme-color);
+    background: var(--swiper-theme-color);
+}
+
+/*表单盒子*/
+form.list-query-row{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    background: #fff;
+    animation-name: fadeInUp;
+    animation-duration: 1.5s;
+}
+form.list-query-row .el-form-item{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    margin-right:10px;
+    margin-bottom: 10px
+}
+form.list-query-row .query-date .el-form-item__content{
+    height:var(--button-height);
+    line-height:var(--button-line-height);
+}
+
+form.list-query-row .el-input__inner {
+    border-radius: 0px;
+    padding: 0 10px;
+}
+form.list-query-row .el-input--prefix .el-input__inner {
+    padding-left: 10px
+    border-radius:0px;
+}
+form.list-query-row .el-input--suffix .el-input__inner {
+    padding-right: 10px;
+    max-width: 150px;
+}
+form.list-query-row .el-input .el-input--suffix {
+    margin: 0 5px;
+}
+form.list-query-row label.el-form-item__label {
+    width: auto !important;
+    background: #fbfbfb;
+    padding: 0 10px;
+    border: 1px solid #eee;
+    border-width: 1px 0 1px 1px;
+    height:var(--button-height);
+    line-height:var(--button-line-height);
+}
+form.list-query-row .el-input__icon{
+    line-height:var(--button-line-height);
+}
+/*箭头*/
+form.list-query-row .el-input__suffix {
+    right: 10px;
+    color: #c0c4cc;
+}
+/*搜索按钮*/
+form.list-query-row  .el-button--primary {
+    border-radius:0px;
+}
+form.list-query-row  .el-button--primary:focus,.el-button--primary:hover {
+}
+
+/*按钮盒子*/
+.btns-row {
+    margin-top: 10px;
+    color: #333;
+}
+/*按钮*/
+.btns-row button{
+     padding: 0 20px;
+     height:32px;
+     line-height:32px;
+     border-radius:2px;
+     font-size:12px;
+}
+/*新增按钮*/
+.btns-row  .add{
+    color: inherit;
+    border-color: #d3dbde !important;
+    background: url(http://clfile.zggen.cn/20240105/78ba3349efbd48298fb359f4fd840c84.png) no-repeat 6px center / 22px,#f3f7f8;
+    padding:0 8px 0 32px;
+    animation-name: fadeInUp;
+    animation-duration: 1s;
+}
+.btns-row  .add:hover {
+    color: inherit;
+    background: url(http://clfile.zggen.cn/20240105/78ba3349efbd48298fb359f4fd840c84.png) no-repeat 6px center / 22px,#f3f7f8;
+}
+/*详情按钮*/
+.btns-row  .info{
+    color: inherit;
+    border-color: #d3dbde !important;
+    background: url(http://clfile.zggen.cn/20240105/7f7cf8ebbc9d4315afaa2ecf2bb89d43.png) no-repeat 6px center / 22px,#f3f7f8;
+    padding:0 8px 0 32px;
+    animation-name: fadeInUp;
+    animation-duration: 1.5s;
+    display:none;
+}
+.btns-row  .info:hover {
+    color: inherit;
+    background: url(http://clfile.zggen.cn/20240105/7f7cf8ebbc9d4315afaa2ecf2bb89d43.png) no-repeat 6px center / 22px,#f3f7f8;
+}
+.btns-row .info.is-disabled {
+    filter: grayscale(1);
+}
+
+/*按钮修改*/
+.btns-row  .edit{
+    color: inherit;
+    border-color: #d3dbde !important;
+    background: url(http://clfile.zggen.cn/20240105/74655d01c9ff4df4ad29a08a861afafc.png) no-repeat 6px center / 22px,#f3f7f8;
+    padding:0 8px 0 32px;
+    animation-name: fadeInUp;
+    animation-duration: 2s;
+}
+.btns-row  .edit:hover {
+    color: inherit;
+    background: url(http://clfile.zggen.cn/20240105/74655d01c9ff4df4ad29a08a861afafc.png) no-repeat 6px center / 22px,#f3f7f8;
+}
+.btns-row .edit.is-disabled {
+    filter: grayscale(1);
+}
+
+/*按钮删除*/
+.btns-row  .del{
+    color: inherit;
+    border-color: #d3dbde !important;
+    background: url(http://clfile.zggen.cn/20240105/cdcbbb1b3c924739a1228734d5cd9878.png) no-repeat 6px center / 20px auto,#f3f7f8;
+    padding:0 8px 0 32px;
+    animation-name: fadeInUp;
+    animation-duration: 2.5s;
+}
+.btns-row .del:hover {
+    color: inherit;
+    background: url(http://clfile.zggen.cn/20240105/cdcbbb1b3c924739a1228734d5cd9878.png) no-repeat 6px center / 20px auto,#f3f7f8;
+}
+.btns-row .del.is-disabled {
+    filter: grayscale(1);
+}
+
+/*统计图按钮*/
+.btns-row  .chart {
+    color: inherit;
+    border-color: #d3dbde !important;
+    background: url(http://clfile.zggen.cn/20240105/0d7f583b404e4918bfbc56992220bb9e.png) no-repeat 6px center / 20px,#f3f7f8;
+    padding:0 8px 0 32px;
+    animation-name: fadeInUp;
+    animation-duration: 3s;
+}
+.btns-row .chart :hover {
+    color: inherit;
+    background: url(http://clfile.zggen.cn/20240105/0d7f583b404e4918bfbc56992220bb9e.png) no-repeat 6px center / 20px,#f3f7f8;
+}
+.btns-row .chart.is-disabled {
+    filter: grayscale(1);
+}
+
+/*其他按钮*/
+.btns-row  .other {
+    color: inherit;
+    border-color: #d3dbde !important;
+    background: url(http://clfile.zggen.cn/20240106/d000c16bbd0f4d4582bb1fc5ce999287.png) no-repeat 6px center / 18px,#f3f7f8;
+    padding:0 8px 0 32px;
+    animation-name: fadeInUp;
+    animation-duration: 3.5s;
+}
+.btns-row .other :hover {
+    color: inherit;
+    background: url(http://clfile.zggen.cn/20240106/d000c16bbd0f4d4582bb1fc5ce999287.png) no-repeat 6px center / 18px,#f3f7f8;
+}
+.btns-row .other.is-disabled {
+    filter: grayscale(1);
+}
+
+/*表格总盒子*/
+.table-wrapper {
+    margin-top: 20px;
+    animation-name: fadeInUp;
+    animation-duration: 1.5s;
+}
+/*表格盒子*/
+.el-table {
+   background: rgba(255,255,255,1);
+   border: 0px solid #eee;
+}
+.el-table:before {
+    content: "";
+    position: absolute;
+    background:none;
+    z-index: 1
+}
+/*表格头*/
+.el-table .el-table__header .has-gutter tr{
+    background: var(--background);
+}
+.el-table .el-table__header tr:hover{
+    background: var(--background);
+}
+.el-table__header .has-gutter tr th{
+    background: none;
+    color:#333;
+}
+.el-table tr{
+    background: none;
+}
+/*tr悬浮颜色*/
+.el-table tr:hover{
+    background: var(--hover-background);
+}
+/*斑马纹*/
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+}
+/*删除默认的背景色*/
+.el-table--enable-row-hover .el-table__body tr:hover>td.el-table__cell {
+    background: none;
+}
+/*th下横线*/
+.el-table th.el-table__cell.is-leaf {
+    border-bottom:0px solid #eee;
+}
+/*td下横线*/
+.el-table td.el-table__cell {
+    border-bottom:1px solid #eee;
+}
+.el-button--text{
+    color:var(--swiper-theme-color);
+}
+
+/*表格按钮*/
+.el-table td button{
+     padding: 0 20px;
+     height:32px;
+     line-height:32px;
+     border-radius:2px;
+}
+/*详情*/
+.el-table td  .info{
+    color: #333;
+    border-color: #d3dbde !important;
+    background: url(http://clfile.zggen.cn/20240105/7f7cf8ebbc9d4315afaa2ecf2bb89d43.png) no-repeat 6px center / 22px,#f3f7f8;
+    padding:0 8px 0 32px;
+    animation-name: fadeInUp;
+    animation-duration: 1.5s;
+}
+.el-table td  .info:hover {
+}
+/*删除*/
+.el-table td .delete{
+    color: #333;
+    border-color: #d3dbde !important;
+    background: url(http://clfile.zggen.cn/20240105/cdcbbb1b3c924739a1228734d5cd9878.png) no-repeat 6px center / 20px auto,#f3f7f8;
+    padding:0 8px 0 32px;
+    animation-name: fadeInUp;
+    animation-duration: 2s;
+}
+.el-table td .delete:hover {
+}
+/*跨表*/
+.el-table td .cross{
+    color: #333;
+    border-color: #d3dbde !important;
+    background: url(http://clfile.zggen.cn/20240106/a36fd9da3497456f9a2321f371750913.png) no-repeat 6px center / 18px,#f3f7f8;
+    padding:0 8px 0 32px;
+    animation-name: fadeInUp;
+    animation-duration: 2s;
+}
+/*其他*/
+.el-table td .some{
+    color: #333;
+    border-color: #d3dbde !important;
+    background: url(http://clfile.zggen.cn/20240106/d000c16bbd0f4d4582bb1fc5ce999287.png) no-repeat 6px center / 18px,#f3f7f8;
+    padding:0 8px 0 32px;
+    animation-name: fadeInUp;
+    animation-duration: 2s;
+}
+
+/*复选框*/
+.el-checkbox__inner:hover {
+    border-color: #56c68b;
+}
+.el-checkbox__input.is-checked .el-checkbox__inner {
+    background-color: #56c68b;
+    border-color: #56c68b;
+}
+.el-checkbox__input.is-checked+.el-checkbox__label {
+    color: #56c68b;
+}
+.el-checkbox__input.is-focus .el-checkbox__inner {
+    border-color: #56c68b;
+}
+.el-checkbox__input.is-indeterminate .el-checkbox__inner {
+    background-color: #56c68b;
+    border-color: #56c68b;
+}
+
+/*分页总盒子*/
+.pagination {
+    text-align: center;
+    margin-top: 10px;
+    background: none;
+}
+/*分页按钮*/
+.el-pagination button{
+    padding: 0 6px;
+}
+.el-pagination button:hover {
+    color:var(--swiper-theme-color);
+}
+.el-pagination button:disabled {
+    color: #999;
+    background: none;
+    margin:0 2px;
+    border-radius:2px;
+}
+.el-pagination button,.el-pagination span:not([class*=suffix]) {
+    font-size: 14px;
+    height: 28px;
+    line-height: 28px;
+}
+.el-pagination .btn-next,.el-pagination .btn-prev {
+    color: #666;
+    font-weight:500;
+    background: none;
+    margin:0 2px;
+    border-radius:2px;
+}
+.el-pager li {
+    min-width:inherit;
+    color: #666;
+    font-size: 14px;
+    font-weight:500;
+    padding:0 4px;
+    height: 28px;
+    line-height: 28px;
+    background: none;
+    margin:0 5px;
+    border-radius:2px;
+}
+.el-pager li:hover {
+    color:var(--swiper-theme-color);
+}
+.el-pager li.active {
+    color:var(--swiper-theme-color);
+}
+.el-pagination .el-pager li.disabled {
+    color: #999;
+}
+</style>
+</html>

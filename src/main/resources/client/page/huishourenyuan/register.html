@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>注册</title>
+    <link rel="stylesheet" href="../../static/modules/elementui/theme/index.css">
+    <link rel="stylesheet" href="../../static/modules/animate.min.css">
+    <script src="../../static/modules/wow.min.js"></script>
+    <link rel="stylesheet" href="../../static/css/app.css">
+    <link rel="stylesheet" href="../../static/css/index.css">
+    <script src="../../static/modules/vue.min.js"></script>
+    <script src="../../static/modules/elementui/index.js"></script>
+    <script src="../../static/iconfont/iconfont.js"></script>
+</head>
+<body>
+<el-container id="page" v-cloak>
+    <el-main id="main">
+            <div class="register-wrapper">
+                <div class="form-name">注册</div>
+                <el-form ref="registerForm" class="register-form" :model="registerForm" size="small" >
+                    <el-form-item label="人员账号" class="input-row">
+                        <el-input v-model="registerForm.renyuanzhanghao"
+                                  placeholder="请输入人员账号"
+                                  type="text"
+                        ></el-input>
+                    </el-form-item>
+                    <el-form-item label="密码" class="input-row">
+                        <el-input v-model="registerForm.mima" placeholder="密码" type="password" autocomplete="new-password"></el-input>
+                    </el-form-item>
+                    <el-form-item label="确认密码" class="input-row">
+                        <el-input v-model="registerForm.mima2" placeholder="密码" type="password" autocomplete="new-password"></el-input>
+                    </el-form-item>
+                    <el-form-item label="人员姓名" class="input-row">
+                        <el-input v-model="registerForm.renyuanxingming"
+                                  placeholder="请输入人员姓名"
+                                  type="text"
+                        ></el-input>
+                    </el-form-item>
+                    <el-form-item label="头像" class="upload-img-row">
+                        <file-upload
+                                tip="点击上传头像"
+                                action="file/upload"
+                                :limit="3"
+                                :multiple="true"
+                                :file-urls="registerForm.touxiang?registerForm.touxiang:''"
+                                @change="touxiangUploadSuccess"
+                        ></file-upload>
+                    </el-form-item>
+                    <el-form-item label="性别" class="select-row">
+                        <el-select
+                                class="list_sel"
+                                v-model="registerForm.xingbie"
+                                placeholder="请选择性别"
+                        >
+                        <el-option v-for="item in huishourenyuanxingbieLists" :label="item" :value="item"></el-option>
+                    </el-select>
+                    </el-form-item>
+                    <el-form-item label="手机号码" class="input-row">
+                        <el-input v-model="registerForm.shoujihaoma"
+                                  placeholder="请输入手机号码"
+                                  type="text"
+                        ></el-input>
+                    </el-form-item>
+                </el-form>
+                <div class="btn-row">
+                    <el-button class="register-btn" type="primary" @click="handleRegister">注册</el-button>
+                </div>
+            </div>
+    </el-main>
+</el-container>
+</body>
+<script src='../../static/modules/axios.min.js'></script>
+<script src="../../utils/http.js"></script>
+<script src="../../utils/system.js"></script>
+<script src="../../utils/global_mixin.js"></script>
+<script src="../../utils/toolUtil.js"></script>
+<script src="../../components/FileUpload.js"></script>
+<script src="../../components/page-header.js"></script>
+<script>
+var vm = new Vue({
+    el: '#page',
+    data(){
+        return {
+            registerForm:{
+                xingbie: '',
+            },
+            huishourenyuanxingbieLists:[],
+        }
+    },
+    created(){
+        this.init()
+    },
+    methods: {
+        init(){
+            this.huishourenyuanxingbieLists = "男,女".split(',')
+        },
+            touxiangUploadSuccess(fileUrls){
+            this.registerForm.touxiang = fileUrls;
+        },
+    // 多级联动参数
+        //公共方法
+        getUUID(){
+            return new Date().getTime();
+        },
+
+        handleRegister(){
+            let url = "huishourenyuan/register";
+            if(!this.registerForm.renyuanzhanghao){
+                return this.$message.error(`人员账号不能为空`)
+            }
+            if(!this.registerForm.mima){
+                return this.$message.error(`密码不能为空`)
+            }
+            if(!this.registerForm.mima2){
+                return this.$message.error('请确认密码')
+            }
+            if(this.registerForm.mima!=this.registerForm.mima2){
+                return this.$message.error('两次输入的密码不一致')
+            }
+            if(!this.registerForm.renyuanxingming){
+                return this.$message.error(`人员姓名不能为空`)
+            }
+            if(this.registerForm.touxiang!=null){
+                this.registerForm.touxiang = this.registerForm.touxiang.replace(new RegExp(baseUrl,"g"),"");
+            }
+            if(this.registerForm.shoujihaoma&&(!toolUtil.isMobile(this.registerForm.shoujihaoma))){
+                return this.$message.error(`手机号码应输入手机格式`)
+            }
+            http.post(url,this.registerForm).then(res=>{
+            this.$message.success('注册成功')
+                setTimeout(()=>{
+                    location.replace('../login.html')
+                },1000)
+            })
+        },
+    },
+
+})
+</script>
+<script>
+
+</script>
+<style>
+
+
+
+#page {
+}
+
+
+#main{
+    background: url("http://clfile.zggen.cn/20240425/c5aa7cb477cd4acda6b96414ee9211f8.jpg") no-repeat center center / cover;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow:hidden;
+}
+
+
+.register-wrapper{
+    background: url() no-repeat left center / 600px 100%;
+    box-sizing: border-box;
+    padding: 0px;
+    width: 660px;
+    min-height:500px;
+    border: 0px solid rgb(255, 255, 255);
+    z-index: 1;
+    box-shadow:0px 0px 0px #999;
+    margin: 20px 0px 120px;
+}
+
+
+.register-wrapper .form-name{
+    padding: 0;
+    margin: 0px 0px 20px;
+    color: #fff;
+    background: url(http://clfile.zggen.cn/20240425/c28b10deaf4640bba7b6456274e3d3b8.png) no-repeat center top / 100% 100%;
+    width: 100%;
+    font-size: 16px;
+    height: 50px;
+    line-height: 40px;
+    text-align: center;
+}
+
+
+.register-form{
+    padding: 20px 40px 0;
+    background:#fff;
+}
+
+
+.register-form .el-form-item {
+    display:flex;
+    width: 100%;
+    background:#fff;
+    margin:0 0 0px;
+    padding:0 0 5px;
+}
+
+
+.register-form .el-form-item__label {
+    min-width: 150px;
+}
+
+
+.register-form .el-form-item__content {
+    width: calc(100% - 250px);
+    line-height:32px;
+}
+
+
+.register-form .el-date-editor{
+    width: 100%!important;
+}
+
+
+.register-form .el-input__inner{
+    border:1px solid #eee;
+    border-radius:0px;
+    height:32px;
+    line-height:32px;
+}
+.register-form .el-input__inner:hover,.register-form .el-input__inner:focus{
+    border:1px solid var(--hover-border-color);
+}
+.register-form .el-select .el-input__inner {
+     border:1px solid #eee;
+}
+.register-form .el-select .el-input__inner:hover,.register-form .el-select .el-input__inner:focus {
+    border:1px solid var(--hover-border-color);
+}
+
+
+.register-form .el-date-editor{
+  width: 100%;    
+}
+
+.register-form .el-select{
+width: 100%;  
+}
+
+.el-input__icon {
+    width: 25px;
+    line-height: 32px
+}
+
+.register-form .el-upload .el-button{
+    background:var(--swiper-theme-color);
+    border:0;
+}
+
+.register-form .el-upload-list__item.is-success {
+    width: 120px;
+    height: 80px;
+    border-radius:0;
+}
+.register-form .el-upload.el-upload--picture-card {
+    width: 120px;
+    height: 80px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border-radius:0;
+}
+.register-form .el-upload--picture-card:hover,.register-form .el-upload:focus {
+    border-color: var(--swiper-theme-color);
+    color: var(--swiper-theme-color);
+}
+.register-form .el-upload:focus .el-upload-dragger {
+    border-color: var(--swiper-theme-color);
+}
+
+
+.el-checkbox__input.is-checked .el-checkbox__inner,.el-checkbox__input.is-indeterminate .el-checkbox__inner {
+    background-color: var(--swiper-theme-color);
+    border-color: var(--swiper-theme-color);
+}
+.el-checkbox__inner:hover {
+    border-color: var(--swiper-theme-color);
+}
+.el-checkbox__input.is-checked+.el-checkbox__label {
+    color: var(--swiper-theme-color)
+}
+
+
+.el-radio__input.is-checked .el-radio__inner {
+    border-color: var(--swiper-theme-color);
+    background: var(--swiper-theme-color)
+}
+.el-radio__inner:hover {
+    border-color: var(--swiper-theme-color)
+}
+.el-radio__input.is-checked+.el-radio__label {
+    color: var(--swiper-theme-color)
+}
+
+
+.code-row {
+
+}
+
+.code-row .code-row-value{
+    width: 100%;
+    display: flex;
+}
+
+.code-row .code-row-value .el-button{
+    border-radius:0px;
+    margin:0 0 0 20px;
+    padding:0 10px;
+    height:32px;
+    line-height:32px;
+    color:#fff;
+    background:var(--swiper-theme-color);
+    border-color: var(--swiper-theme-color);
+}
+.code-row .code-row-value .el-button:hover{
+    color:var(--swiper-theme-color);
+    border-color: var(--hover-border-color);
+    background:var(--hover-background10);
+}
+
+
+.btn-row{
+    display: flex;
+    justify-content: center;
+    background:#fff;
+    padding: 0 0 10px;
+    margin:0;
+}
+
+.register-btn{
+    width: 120px;
+    margin:0 0 20px;
+    padding:0;
+    height:40px !important;
+    line-height:32px !important;
+    background:var(--swiper-theme-color);
+    border:0;
+    border-radius:0px;
+    margin-top: 20px;
+    font-size: 16px;
+    transiton: all 0.5s;
+}
+.register-btn:hover{
+    border-color: #999;
+    background:var(--swiper-theme-color);
+    color:#fff;
+}
+
+#main {
+    background-image: url(http://clfile.zggen.cn/20240425/00bbd471b3f6487fb9478eb325e8cc4f.webp);
+}
+</style>
+</html>

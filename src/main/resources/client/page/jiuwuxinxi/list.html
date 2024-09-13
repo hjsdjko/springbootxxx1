@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>旧物信息</title>
+    <link rel="stylesheet" href="../../static/modules/elementui/theme/index.css">
+    <link rel="stylesheet" href="../../static/modules/animate.min.css">
+    <script src="../../static/modules/wow.min.js"></script>
+    <link rel="stylesheet" href="../../static/css/app.css">
+    <link rel="stylesheet" href="../../static/css/index.css">
+    <link rel="stylesheet" href="../../static/css/formModel.css">
+    <script src="../../static/modules/vue.min.js"></script>
+    <script src="../../static/modules/elementui/index.js"></script>
+    <script src="../../static/iconfont/iconfont.js"></script>
+</head>
+<body>
+<el-container id="page" v-cloak>
+    <el-header height="auto" id="pageHeader">
+        <page-header></page-header>
+        <nav-menu></nav-menu>
+    </el-header>
+    <el-container>
+        <el-main id="main">
+            <div id="child-page">
+                <page-swiper></page-swiper>
+                <div class="content-box">
+                    <div class="header-wrapper">
+                        <div class="header-view">
+                            <el-button v-if="centerType" @click="history.go(-1)" :attr="{}" >返回</el-button>
+                            <el-breadcrumb separator-class="el-icon-arrow-right" >
+                                <el-breadcrumb-item>{{centerType?"个人中心":"首页"}}</el-breadcrumb-item>
+                                <el-breadcrumb-item>旧物信息</el-breadcrumb-item>
+                            </el-breadcrumb>
+                        </div>
+                        <el-form class="search-view" :model="searchQuery" :inline="true" >
+                            <el-form-item class="query-input" label="旧物名称">
+                                <el-input class="search_inp" v-model="searchQuery.jiuwumingcheng" placeholder="旧物名称"></el-input>
+                            </el-form-item>
+                            <el-form-item class="selector" label="地区">
+                                <el-select
+                                        class="search_sel"
+                                        clearable
+                                        v-model="searchQuery.diqu"
+                                        placeholder="地区"
+                                >
+                                    <el-option v-for="item in diquLists" :label="item" :value="item"></el-option>
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item class="option-btn">
+                                <el-button class="search-btn" type="primary" @click="searchClick">搜索</el-button>
+                                <el-button class="add-btn" type="primary" v-if="btnAuth('jiuwuxinxi','新增')" @click="addClick">新增</el-button>
+                            </el-form-item>
+                        </el-form>
+                        <div class="category-view">
+                            <div class="category-list">
+                                <div class="category-item" @click="categoryClick(-1)" :class="categoryIndex==-1?'selected':''">全部</div>
+                                <div class="category-item" v-for="(item,index) in categoryList" @click="categoryClick(index)" :class="categoryIndex==index?'selected':''">
+                                    {{item}}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="list-wrapper">
+                        <div class="list-view">
+                            <div class="list" v-if="list.length">
+                                <div class="item" v-for="(item,index) in list" :key="index" @click="detailClick(item.id)">
+                                    <div class="img-wrapper">
+                                        <template v-if="item.tupian && item.tupian.substr(0,4)=='http'">
+                                            <el-image :src="item.tupian" fit="cover"></el-image>
+                                        </template>
+                                        <template v-else>
+                                            <el-image :src="item.tupian?baseUrl + item.tupian.split(',')[0]:''" fit="cover"></el-image>
+                                        </template>
+                                    </div>
+                                    <div class="infoItem-wrapper">
+                                        <div class="infoItem">{{item.jiuwumingcheng}}</div>
+                                        <div class="infoItem">回收单价：{{item.huishoudanjia}}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <el-empty description="空空如也"  v-else></el-empty>
+                            <div class="pagination-row">
+                                <el-pagination
+                                        :total="total"
+                                        :page-size="listQuery.limit"
+                                        :current-page.sync="listQuery.page"
+                                        :page-sizes="pageSizes"
+                                        @size-change="sizeChange"
+                                        @current-change="currentChange"
+                                        layout="prev, pager, next, jumper, ->, total" :background="true" next-text="下一页" prev-text="上一页" >
+                                </el-pagination>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <jiuwuxinxi-form ref="formRef" @change="getList"></jiuwuxinxi-form>
+            </div>
+        </el-main>
+    </el-container>
+    <el-footer height="auto">
+        <p></p>
+    </el-footer>
+</el-container>
+</body>
+<script src="../../static/modules/axios.min.js"></script>
+<script src="../../utils/http.js"></script>
+<script src="../../utils/system.js"></script>
+<script src="../../utils/global_mixin.js"></script>
+<script src="../../utils/toolUtil.js"></script>
+<!--引入组件-->
+<script src="../../components/page-header.js"></script>
+<script src="../../components/nav-menu.js"></script>
+<script src="formComponent.js"></script>
+<script src="../../components/page-swiper.js"></script>
+<script>
+    var vm = new Vue({
+        el: '#page',
+        data(){
+            return{
+                tableName:'jiuwuxinxi',
+                formName:'旧物信息',
+                list:[],
+                total:0,
+                listQuery:{
+                    page: 1,
+                    limit: 8,
+                },
+                listLoading:false,
+                pageSizes:[20,50,100,200],
+                searchQuery:{},
+                centerType:false,
+                searchQuery:{},
+                diquLists:[],
+                //分类
+                categoryList:[],
+                categoryIndex:-1,
+            }
+        },
+        created(){
+            this.centerType = toolUtil.getUrlParamsByKey("centerType")
+            this.init()
+        },
+        methods: {
+            sizeChange(size){
+                this.listQuery.limit = size
+                this.getList()
+            },
+            currentChange(page){
+                this.listQuery.page = page
+                this.getList()
+            },
+            //权限验证
+            btnAuth(e,a){
+                if(this.centerType){
+                    return toolUtil.isBackAuth(e,a)
+                }else{
+                    return toolUtil.isAuth(e,a)
+                }
+            },
+            addClick(){
+                this.$refs['formRef'].init()
+            },
+            init(){
+                this.getCategoryList()
+                this.getList()
+                this.getdiquLists()
+            },
+            getdiquLists(){
+                http.get('option/diqu/diqu').then(res=>{
+                    this.diquLists = res.data.data
+                })
+            },
+            searchClick(){
+                this.listQuery.page = 1
+                this.getList()
+            },
+            getList(){
+                this.listLoading = true
+                let params = JSON.parse(JSON.stringify(this.listQuery))
+                if(this.categoryIndex != -1){
+                    params.jiuwufenlei = this.categoryList[this.categoryIndex]
+                }
+                if(this.searchQuery.jiuwumingcheng && this.searchQuery.jiuwumingcheng!=''){
+                    params.jiuwumingcheng = '%' + this.searchQuery.jiuwumingcheng + '%'
+                }
+                if(this.searchQuery.diqu && this.searchQuery.diqu!=''){
+                    params.diqu = this.searchQuery.diqu
+                }
+                http.get(`${this.tableName}/${this.centerType?'page':'list'}`,{
+                    params: params
+                }).then(res=>{
+                    this.listLoading = false
+                    this.list = res.data.data.list
+                    this.total = Number(res.data.data.total)
+                })
+            },
+            getCategoryList(){
+                http.get('option/jiuwufenlei/jiuwufenlei').then(res=>{
+                    this.categoryList = res.data.data
+                })
+            },
+            categoryClick(index){
+                this.listQuery.page = 1
+                this.categoryIndex = index
+                this.getList()
+            },
+            tableDetailClick(row){
+                location.href = `detail.html?id=${row.id}${this.centerType?'&&centerType=1':''}`
+            },
+            detailClick(id){
+                location.href = `detail.html?id=${id}${this.centerType?'&&centerType=1':''}`
+            },
+        }
+    })
+</script>
+<style>
+
+.el-main {
+    padding: 0 0 30px;
+    background: #fff;
+}
+
+
+.page-swiper{
+   width: var(--body-width);
+   margin: 10px auto 14px;
+}
+
+.swiper-wrapper{
+   margin: 10px auto 0;
+   padding:0;
+}
+.swiper-wrapper .swiper-slide .item{
+   width: var(--body-width);
+   margin: 10px auto 14px;
+}
+.swiper-wrapper .swiper-slide .item img{
+   width:100%;
+   height:400px;
+   object-fit:cover;
+}
+
+.swiper-pagination{ margin-bottom:15px; }
+.swiper-pagination span{ width:8px; height:8px; background:var(--swiper-theme-color); border-radius:100%; }
+
+
+.content-box {
+    width: 100%;
+    margin: 0 auto;
+}
+
+
+.header-wrapper {
+    width: var(--body-width);
+    margin:0 auto;
+    padding: 0 0px;
+    border-radius: 0px;
+    background-color: #fff;
+    margin-top:20px;
+}
+
+.header-view {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #edeef0;
+    height: 60px;
+    align-items: center;
+}
+
+.header-view .el-breadcrumb {
+}
+
+.header-view .el-button{
+}
+.header-view .el-button:focus,.header-view .el-button:hover {
+}
+.header-view .el-button:active {
+}
+
+
+.search-view {
+    padding-top: 30px;
+}
+
+.search-view .el-form-item__content{
+}
+
+.search-view .el-form-item__content .el-input__inner{
+    border: 1px solid #eee;
+    border-radius: 0px;
+    max-width:250px;
+}
+.search-view .el-form-item__content .el-input__inner:focus {
+}
+.el-input__inner .el-range-separator{
+    min-width:40px;
+}
+
+.search-view .el-form-item__content .search-btn{
+    color: #fff;
+    background: var(--swiper-theme-color);
+    border-color: var(--swiper-theme-color);
+    padding:0 10px;
+    height:32px;
+    line-height:32px;
+    min-width:80px;
+    border-radius: 0px;
+}
+.search-view .el-form-item__content .search-btn:hover{
+    color: var(--swiper-theme-color);
+    border-color: var(--hover-border-color);
+    background: var(--hover-background);
+}
+.search-view .el-form-item__content .add-btn{
+    color: #fff;
+    background: var(--swiper-theme-color);
+    border-color: var(--swiper-theme-color);
+    padding:0 10px;
+    height:32px;
+    line-height:32px;
+    min-width:80px;
+    border-radius: 0px;
+}
+.search-view .el-form-item__content .add-btn:hover{
+    color: var(--swiper-theme-color);
+    border-color: var(--hover-border-color);
+    background: var(--hover-background);
+}
+
+
+.category-view {
+    padding-bottom: 30px;
+}
+
+.category-list {
+    display: grid;
+    grid-template-columns: repeat(9,1fr);
+    grid-row-gap: 16px;
+}
+.category-list .category-item {
+    background: none;
+    border-radius: 0px;
+    line-height: 40px;
+    width: auto;
+    min-width: 80px;
+    padding:0 10px;
+    text-align: center;
+    color: #666;
+    border: 0px solid #999;
+    cursor: pointer;
+    margin: 0 auto;
+    border-radius: 0px;
+}
+.category-list .category-item:hover{
+    background: var(--swiper-theme-color);
+    color: #fff;
+    border: none;
+}
+.category-list .category-item.selected {
+    background: var(--swiper-theme-color);
+    color: #fff;
+    border: none;
+}
+
+
+
+.list-wrapper {
+    width: var(--body-width);
+    margin:0 auto;
+    padding: 0;
+    display: block;
+    justify-content: space-between;
+}
+
+.list-view {
+    background: #fff;
+    margin-top: 20px;
+    padding: 0px;
+    border-radius: 0px;
+    flex: 1;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.list {
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    row-gap: 24px;
+    column-gap: 24px;
+}
+.list .item {
+    box-shadow: 0 0px 0px rgba(0, 0, 0, 0.3);
+    border-radius: 0px;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+}
+.list .el-image {
+    height: 220px;
+    width: 100%;
+}
+
+.list .item .play-wrapper {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 220px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0,0,0,0.5);
+    transition: 300ms;
+}
+.list .item:hover .play-wrapper {
+    top: 0;
+    left: 0px;
+}
+
+.list .item .play-wrapper .play .iconfont {
+    font-size: 66px;
+    color: rgba(255,255,255,0.8);
+}
+
+
+.list .item .infoItem-wrapper{
+    padding:10px;
+}
+.list .item:hover .infoItem-wrapper{
+    background: var(--hover-background30);
+    padding:10px;
+}
+
+
+.list .item .infoItem-wrapper .infoItem{
+    line-height: 24px;
+}
+
+.list .item .infoItem-wrapper .price{
+    color: #c00;
+    line-height: 24px;
+}
+
+
+
+.pagination-row {
+    text-align: center;
+    background-color: #fff;
+    padding: 30px 0;
+    border-radius: 0 0 8px 8px;
+}
+
+.pagination-row .el-pager{
+}
+.pagination-row .el-pager .number{
+}
+.pagination-row .btn-prev{
+    padding: 0 10px !important;
+}
+.pagination-row .btn-next{
+    padding: 0 10px !important;
+}
+.pagination-row .el-pager .number:hover{
+    background: var(--swiper-theme-color);
+    color: #fff !important;
+}
+.pagination-row .el-pager .active{
+    background: var(--swiper-theme-color) !important;
+    color: #fff !important;
+}
+.pagination-row .el-pager .more:hover{
+    background: var(--swiper-theme-color) !important;
+    color: #fff !important;
+}
+
+
+.hot-view {
+    width: 100%;
+    margin-top: 0px;
+    background-color: #fff;
+    margin-left: 0px;
+    padding: 0 0px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0px;
+    padding-bottom: 20px;
+}
+
+.hot-view .title-row {
+    text-align: center;
+    line-height: 60px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.hot-view .hot-list {
+    overflow: auto;
+    display: grid;
+    grid-template-areas:
+    'a1 a2 a3 . ';
+    column-gap: 20px;
+    row-gap: 20px;
+}
+.hot-view .hot-list .hot-item{
+    margin-bottom: 10px;
+    cursor:pointer;
+}
+
+.hot-view .hot-list .hot-item .el-image{
+    width: 100%;
+}
+.hot-view .hot-list .hot-item .el-image img{
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+}
+
+.hot-view .hot-list .hot-item .hot-text{
+    line-height: 24px;
+    text-align:center;
+}
+
+.hot-view .hot-list .hot-item:hover .hot-text{
+    background: var(--swiper-theme-color);
+    color:#fff;
+}
+
+.hot-list::-webkit-scrollbar {
+    display: none;
+}
+
+
+</style>
+</html>

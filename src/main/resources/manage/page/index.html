@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>旧物回收管理系统</title>
+    <link rel="stylesheet" href="../static/modules/elementui/theme/index.css">
+    <link rel="stylesheet" href="../static/css/app.css">
+    <link rel="stylesheet" href="../static/css/index.css">
+    <link rel="stylesheet" href="../static/css/home.css">
+    <link rel="stylesheet" href="../static/modules/animate.min.css">
+    <script src="../static/modules/wow.min.js"></script>
+    <script src="../static/modules/vue.min.js"></script>
+    <script src="../static/modules/elementui/index.js"></script>
+    <script src="../static/modules/echarts.min.js"></script>
+    <script src="../static/iconfont/iconfont.js"></script>
+</head>
+<body>
+<el-container id="page" v-cloak>
+    <el-header height="auto">
+        <page-header></page-header>
+    </el-header>
+    <el-container>
+    <page-aside>
+        <template v-slot:menu>
+            <page-menus></page-menus>
+        </template>
+    </page-aside>
+        <el-main>
+            <div id="child-page">
+                <div class="count_list">
+                    <div class="count_item" v-if="btnAuth('jiuwuxinxi','首页总数')">
+                        <div class="item-head">
+                            <span class="item-head-title">旧物信息</span>
+                        </div>
+                        <div class="item-content">
+                            <div class="item_title">旧物信息总数</div>
+                            <div class="item_num">{{jiuwuxinxiCount}}</div>
+                        </div>
+                    </div>
+                    <div class="count_item" v-if="btnAuth('huishoudingdan','首页总数')">
+                        <div class="item-head">
+                            <span class="item-head-title">回收订单</span>
+                        </div>
+                        <div class="item-content">
+                            <div class="item_title">回收订单总数</div>
+                            <div class="item_num">{{huishoudingdanCount}}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart_list">
+                    <div class="chart_item" v-if="btnAuth('jiuwuxinxi','首页统计')">
+                        <div id="jiuwuxinxiEchart1" class="Echart"></div>
+                    </div>
+                    <div class="chart_item" v-if="btnAuth('huishoudingdan','首页统计')">
+                        <div id="huishoudingdanEchart1" class="Echart"></div>
+                    </div>
+                </div>
+
+            </div>
+        </el-main>
+    </el-container>
+</el-container>
+</body>
+<script src="../static/modules/axios.min.js"></script>
+<script src="../utils/http.js"></script>
+<script src="../utils/toolUtil.js"></script>
+<script src="../utils/global_mixin.js"></script>
+<!--引入组件-->
+<script src="../components/pageHeader.js"></script>
+<script src="../components/pageMenus.js"></script>
+<script src="../components/pageAside.js"></script>
+<script>
+    var vm = new Vue({
+        el: '#page',
+        data(){
+            return {
+                jiuwuxinxiCount:0,
+                huishoudingdanCount:0,
+            }
+        },
+        mounted(){
+            this.getCountList()
+            this.getChartList()
+        },
+        methods: {
+            getCountList(){
+                if(this.btnAuth('jiuwuxinxi','首页总数')){
+                    this.getjiuwuxinxiCount()
+                }
+                if(this.btnAuth('huishoudingdan','首页总数')){
+                    this.gethuishoudingdanCount()
+                }
+            },
+            getjiuwuxinxiCount(){
+                http.get('jiuwuxinxi/count').then(res=>{
+                    this.jiuwuxinxiCount = res.data.data
+                })
+            },
+            gethuishoudingdanCount(){
+                http.get('huishoudingdan/count').then(res=>{
+                    this.huishoudingdanCount = res.data.data
+                })
+            },
+            //权限验证
+            btnAuth(e,a){
+                return toolUtil.isAuth(e,a)
+            },
+            getChartList(){
+                if(this.btnAuth('jiuwuxinxi','首页统计')){
+                    this.getjiuwuxinxiChart1()
+                }
+                if(this.btnAuth('huishoudingdan','首页统计')){
+                    this.gethuishoudingdanChart1()
+                }
+            },
+            getjiuwuxinxiChart1(){
+                this.$nextTick(()=>{
+                    var jiuwuxinxiEchart1 = echarts.init(document.getElementById("jiuwuxinxiEchart1"),'macarons');
+                    http.get(
+                        "jiuwuxinxi/group/jiuwufenlei"
+                    ).then(res=>{
+                        let obj = res.data.data
+                        let xAxis = [];
+                        let yAxis = [];
+                        let pArray = []
+                        for(let i=0;i<obj.length;i++){
+                            xAxis.push(obj[i].jiuwufenlei);
+                            yAxis.push(parseFloat((obj[i].total)));
+                            pArray.push({
+                                value: parseFloat((obj[i].total)),
+                                name: obj[i].jiuwufenlei
+                            })
+                        }
+                        let option = {};
+                        option = {
+                            title: {
+                                text: '旧物类型',
+                                left: 'center'
+                            },
+                            legend: {
+                                orient: 'vertical',
+                                left: 'left'
+                            },
+                            tooltip: {
+                                trigger: 'item',
+                                formatter: '{b} : {c} ({d}%)'
+                            },
+                            series: [
+                                {
+                                    type: 'pie',
+                                        radius: '55%',
+                                    center: ['50%', '60%'],
+                                    data: pArray,
+                                    emphasis: {
+                                        itemStyle: {
+                                            shadowBlur: 10,
+                                            shadowOffsetX: 0,
+                                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                        }
+                                    }
+                                }
+                            ]
+                        };
+                        // 使用刚指定的配置项和数据显示图表。
+                        jiuwuxinxiEchart1.setOption(option);
+                        //根据窗口的大小变动图表
+                        window.onresize = function() {
+                            jiuwuxinxiEchart1.resize();
+                        };
+                    })
+                })
+            },
+            gethuishoudingdanChart1(){
+                this.$nextTick(()=>{
+                    var huishoudingdanEchart1 = echarts.init(document.getElementById("huishoudingdanEchart1"),'macarons');
+                    http.get(
+                        `huishoudingdan/value/jiuwufenlei/huishoushuliang`
+                    ).then(res=>{
+                        let obj = res.data.data
+                        let xAxis = [];
+                        let yAxis = [];
+                        let pArray = []
+                        for(let i=0;i<obj.length;i++){
+                            xAxis.push(obj[i].jiuwufenlei);
+                            yAxis.push(parseFloat((obj[i].total)));
+                            pArray.push({
+                                value: parseFloat((obj[i].total)),
+                                name: obj[i].jiuwufenlei
+                            })
+                        }
+                        let option = {};
+                        option = {
+                            title: {
+                                text: '废品行情',
+                                left: 'center'
+                            },
+                            grid:{
+                                containLabel:true
+                            },
+                            tooltip: {
+                                trigger: 'item',
+                                formatter: '{b} : {c}'
+                            },
+                                xAxis: {
+                                    type: 'category',
+                                    data: xAxis,
+                                    axisLabel : {
+                                        rotate:40
+                                    }
+                                },
+                                yAxis: {
+                                    type: 'value'
+                                },
+                            series: [{
+                                data: yAxis,
+                                type: 'bar'
+                            }]
+                        };
+                        // 使用刚指定的配置项和数据显示图表。
+                        huishoudingdanEchart1.setOption(option);
+                        //根据窗口的大小变动图表
+                        window.onresize = function() {
+                            huishoudingdanEchart1.resize();
+                        };
+                    })
+                })
+            },
+        }
+    })
+</script>
+</html>

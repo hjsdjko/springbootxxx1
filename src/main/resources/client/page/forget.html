@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>找回密码</title>
+    <link rel="stylesheet" href="../static/modules/elementui/theme/index.css">
+    <link rel="stylesheet" href="../static/modules/animate.min.css">
+    <script src="../static/modules/wow.min.js"></script>
+    <link rel="stylesheet" href="../static/css/app.css">
+    <link rel="stylesheet" href="../static/css/index.css">
+    <script src="../static/modules/vue.min.js"></script>
+    <script src="../static/modules/elementui/index.js"></script>
+    <script src="../static/iconfont/iconfont.js"></script>
+</head>
+<body>
+<el-container id="page" v-cloak>
+    <el-main id="main">
+        <div class="forget-wrapper">
+            <div class="from-name">找回密码</div>
+            <el-steps ref="steps" :active="pageType" class="steps" :align-center="true" finish-status="success" >
+                <el-step title="获取密保" >
+                </el-step>
+                <el-step title="验证密保" >
+                </el-step>
+                <el-step title="重置密码" >
+                </el-step>
+            </el-steps>
+            <el-form :model="forgetForm" class="forget-form" size="small" >
+            </el-form>
+            <div class="btns">
+                <el-button v-if="pageType==0" class="getSecurity" type="primary" @click="getSecurity">获取密保</el-button>
+                <el-button v-if="pageType==1" class="validateSecurity" type="primary" @click="validateSecurity">确认密保</el-button>
+                <el-button v-if="pageType==2" class="updatePassword" type="primary" @click="updatePassword">重置密码</el-button>
+            </div>
+        </div>
+    </el-main>
+</el-container>
+</body>
+<script src='../static/modules/axios.min.js'></script>
+<script src="../utils/http.js"></script>
+<script src="../utils/system.js"></script>
+<script src="../utils/global_mixin.js"></script>
+<script src="../utils/toolUtil.js"></script>
+
+<script src="../components/page-header.js"></script>
+<script>
+    var vm = new Vue({
+        el: '#page',
+        data(){
+            return {
+                pageType:1,
+                forgetForm:{},
+                userForm:{},
+            }
+        },
+        methods: {
+        },
+
+    })
+</script>
+<script>
+//须先设置css盒子的animation-duration
+
+new WOW({
+    //boxClass: 'search-box', //目标dom的class
+    //animateClass: 'animate__fadeInDown', //动画名
+}).init()
+
+
+</script>
+<style>
+
+
+
+#page {
+}
+
+
+#main{
+    background: url("http://clfile.zggen.cn/20240425/c5aa7cb477cd4acda6b96414ee9211f8.jpg") no-repeat center center / cover;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+.forget-wrapper{
+    background: url() no-repeat left center / 600px 100%;
+    box-sizing: border-box;
+    padding: 0px;
+    width: 600px;
+    min-height:500px;
+    border: 0px solid rgb(255, 255, 255);
+    z-index: 1;
+   box-shadow:0px 0px 0px #999;
+}
+
+
+.forget-wrapper .from-name{
+    padding: 0;
+    margin: 0px 0px 20px;
+    color: #fff;
+    background: url(http://clfile.zggen.cn/20240425/c28b10deaf4640bba7b6456274e3d3b8.png) no-repeat center top / 100% 100%;
+    width: 100%;
+    font-size: 16px;
+    height: 50px;
+    line-height: 40px;
+    text-align: center;
+}
+
+
+.steps{
+    padding: 0px 10%;
+    margin-bottom: 40px;
+}
+
+
+.forget-form{
+    padding: 0 0px;
+}
+
+.el-steps{
+    background: #fff;
+    padding: 40px 0 20px;
+    margin-bottom:0px!important;
+}
+
+
+.forget-form .el-form-item {
+    display:flex;
+    background: #fff;
+    padding: 20px 0 0;
+    margin-bottom:0px!important;
+}
+
+
+.forget-form label.el-form-item__label {
+    min-width: 150px;
+}
+
+
+.forget-form .el-form-item__content {
+    width: calc(100% - 250px);
+    margin-left:0px !important;
+}
+
+
+.forget-form .el-input__inner{
+    border:1px solid #eee;
+    border-radius:0px;
+}
+.forget-form .el-input__inner:hover,.forget-form .el-input__inner:focus{
+border:1px solid var(--hover-border-color);
+}
+
+
+.btns{
+    width:100%;
+    background: #fff;
+    padding: 20px 0 40px;
+}
+
+
+.btns .el-button--primary {
+    width: calc(100% - 250px);
+    margin-left:150px;
+    border-radius:0px;
+    color: #fff;
+    border-color: var(--swiper-theme-color);
+    background:var(--swiper-theme-color);
+}
+.btns .el-button--primary:focus,.btns .el-button--primary:hover {
+    color: #fff
+    border-color: #333;
+    background: #333;
+}
+
+</style>
+</html>

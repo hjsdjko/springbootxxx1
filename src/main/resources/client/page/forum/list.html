@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>论坛交流</title>
+    <link rel="stylesheet" href="../../static/modules/elementui/theme/index.css">
+    <link rel="stylesheet" href="../../static/modules/animate.min.css">
+    <script src="../../static/modules/wow.min.js"></script>
+    <link rel="stylesheet" href="../../static/css/app.css">
+    <link rel="stylesheet" href="../../static/css/index.css">
+    <script src="../../static/modules/vue.min.js"></script>
+    <script src="../../static/modules/elementui/index.js"></script>
+    <script src="../../static/modules/moment.min.js"></script>
+    <script src="../../static/iconfont/iconfont.js"></script>
+</head>
+<body>
+<el-container id="page" v-cloak>
+    <el-header height="auto" id="pageHeader">
+        <page-header></page-header>
+        <nav-menu></nav-menu>
+    </el-header>
+    <el-container>
+        <el-main id="main">
+            <div id="child-page">
+                <page-swiper></page-swiper>
+                <div class="content-box">
+                    <div class="header">
+                        <el-breadcrumb separator-class="el-icon-arrow-right" >
+                            <el-breadcrumb-item>首页</el-breadcrumb-item>
+                            <el-breadcrumb-item>论坛交流</el-breadcrumb-item>
+                        </el-breadcrumb>
+                    </div>
+                    <div class="search">
+                        <el-form :model="searchQuery" :inline="true" >
+                            <el-form-item>
+                                <el-input v-model="searchQuery.title" placeholder="标题"></el-input>
+                            </el-form-item>
+                            <el-form-item>
+                                <el-button @click="searchClick" type="primary">查询</el-button>
+                                <el-button @click="addClick" v-if="!myType&&btnAuth('forum','新增')" type="success">发布新帖</el-button>
+                            </el-form-item>
+                        </el-form>
+                    </div>
+                    <div class="forumList">
+                        <template v-if="list.length>0">
+                            <div class="forum" v-for="(item,index) in list" :key="index" @click="detailClick(item.id)">
+                                <div class="title">{{item.title}}</div>
+                                <div class="time">{{moment(item.addtime).format('YYYY-MM-DD HH:mm:ss')}}</div>
+                                <div class="user" :title="item.username">
+                                    <el-image :src="item.avatarurl?item.avatarurl.split(',')[0]:''">
+                                        <template slot="error">
+                                            <img style="width: 100%;" src="https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif?imageView2/1/w/80/h/80">
+                                        </template>
+                                    </el-image>
+                                    {{item.username}}
+                                </div>
+                                <div class="options-row" v-if="item.userid==userid">
+                                    <el-button class="edit" v-if="btnAuth('forum','修改')" size="small" type="primary" @click.stop="editClick(item.id)">修改</el-button>
+                                    <el-button class="del" v-if="btnAuth('forum','删除')" size="small" type="danger" @click.stop="delClick(item.id)">删除</el-button>
+                                </div>
+                            </div>
+                        </template>
+                        <template v-else>
+                            <el-empty v-else description="空空如也" ></el-empty>
+                        </template>
+                    </div>
+                    <div class="pagination-row">
+                        <el-pagination
+                                :total="total"
+                                :page-size="listQuery.limit"
+                                :current-page.sync="listQuery.page"
+                                @current-change="currentChange"
+                                layout="prev, pager, next" :background="true" :hide-on-single-page="true" ></el-pagination>
+                    </div>
+                </div>
+                <el-dialog :visible.sync="detailVisible" title="详情" :destroy-on-close="true" width="50%" >
+                    <div class="forum-detail">
+                        <div class="title">{{detailForm.title}}</div>
+                        <div class="user">发布人：{{detailForm.username}}</div>
+                        <div class="time">
+                            发布时间：{{moment(detailForm.addtime).format('YYYY-MM-DD HH:mm')}}
+                        </div>
+                        <div class="content" v-html="detailForm.content"></div>
+                    </div>
+                    <div class="options">
+                        <el-button @click="commentClick" type="success">发表评论</el-button>
+                    </div>
+                    <div class="comment-area">
+                        <div class="box-title">
+                            <span>评论列表</span>
+                        </div>
+                        <div class="comment-list1">
+                            <template v-if="detailForm.childs?.length">
+                                <div class="comment-item1" v-for="(item,index) in detailForm.childs" :key="index">
+                                    <div class="comment-user">
+                                        <el-image :src="item.avatarurl?baseUrl + item.avatarurl.split(',')[0]:''">
+                                            <template slot="error">
+                                                <img style="width: 100%;" src="https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif?imageView2/1/w/80/h/80">
+                                            </template>
+                                        </el-image>
+                                        {{item.username}}
+                                    </div>
+                                    <div class="content" v-html="item.content"></div>
+                                    <div class="options">
+                                        <div class="option delete" v-if="item.userid==userid"
+                                             @click="commentDelClick(item.id)">删除</div>
+                                        <div class="option reply"
+                                             @click="commentReplyClick(item.id)">回复</div>
+                                    </div>
+                                    <div class="comment-list2" v-if="item.childs">
+                                        <div class="comment-item2" v-for="(item1,index1) in item.childs" :key="index1">
+                                            <div class="comment-user">
+                                                <el-image :src="item1.avatarurl?baseUrl + item1.avatarurl.split(',')[0]:''">
+                                                    <template slot="error">
+                                                        <img style="width: 100%;" src="https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif?imageView2/1/w/80/h/80">
+                                                    </template>
+                                                </el-image>
+                                                {{item1.username}}
+                                            </div>
+                                            <div class="content" v-html="item1.content"></div>
+                                            <div class="options">
+                                                <div class="option delete" v-if="item.userid==userid"
+                                                     @click="commentDelClick(item1.id)">删除</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            <template v-else>
+                                <el-empty description="暂无评论"></el-empty>
+                            </template>
+                        </div>
+                    </div>
+                </el-dialog>
+                <el-dialog :visible.sync="commentVisible" v-if="commentVisible" :title="'发表评论'"
+                           custom-class="commentDialog" width="70%" >
+                    <el-form :model="commentForm" label-width="60px">
+                        <el-form-item prop="content" label="内容">
+                            <my-editor :value="commentForm.content" placeholder="请输入评论"
+                                       class="editor" @change="commentChange"></my-editor>
+                        </el-form-item>
+                    </el-form>
+                    <template #footer>
+                        <span class="dialog-footer">
+                            <el-button class="close" @click="commentVisible=false">关闭</el-button>
+                            <el-button class="submit" type="primary" @click="commentSave">发表</el-button>
+                        </span>
+                    </template>
+                </el-dialog>
+                <el-dialog :visible.sync="formVisible" v-if="formVisible" :title="formTitle"
+                           custom-class="releaseDialog" width="50%" >
+                    <el-form :model="form" label-width="80px" :rules="rules" ref="formRef">
+                        <el-form-item label="标题" prop="title" class="title">
+                            <el-input v-model="form.title" placeholder="请输入标题"></el-input>
+                        </el-form-item>
+                        <el-form-item label="类型" class="type">
+                            <el-radio-group v-model="form.isdone">
+                                <el-radio label="开放">公开</el-radio>
+                                <el-radio label="关闭">私密</el-radio>
+                            </el-radio-group>
+                        </el-form-item>
+                        <el-form-item label="内容" prop="content" class="content">
+                            <my-editor :value="form.content" placeholder="请输入内容" @change="contentChange"></my-editor>
+                        </el-form-item>
+                    </el-form>
+                    <template #footer>
+                        <span class="dialog-footer">
+                            <el-button @click="formVisible=false">关闭</el-button>
+                            <el-button type="primary" @click="save">{{form.id?'修改保存':'发布'}}</el-button>
+                        </span>
+                    </template>
+                </el-dialog>
+            </div>
+        </el-main>
+    </el-container>
+    <el-footer height="auto">
+        <p></p>
+    </el-footer>
+</el-container>
+</body>
+<script src="../../static/modules/axios.min.js"></script>
+<script src="../../utils/http.js"></script>
+<script src="../../utils/system.js"></script>
+<script src="../../utils/global_mixin.js"></script>
+<script src="../../utils/toolUtil.js"></script>
+<!--引入组件-->
+<script src="../../components/page-header.js"></script>
+<script src="../../components/nav-menu.js"></script>
+<script src="../../components/page-swiper.js"></script>
+<script>
+    var vm = new Vue({
+        el: '#page',
+        data(){
+            return{
+                tableName:'forum',
+                formName:'论坛交流',
+                list:[],
+                listLoading:false,
+                listQuery:{
+                    page: 1,
+                    limit: 10,
+                    isdone: '开放',
+                    sort: 'addtime',
+                    order: 'desc'
+                },
+                myListQuery:{
+                    page: 1,
+                    limit: 10,
+                    parentid: 0,
+                    sort: 'addtime',
+                    order: 'desc'
+                },
+                searchQuery:{
+                    title:''
+                },
+                total:0,
+                centerType:false,   //判断是否从个人中心跳转
+                userid:0,
+                form:{
+                    title: '',
+                    isdone: '开放',
+                    content: '',
+                    parentid: 0,
+                    userid: this.userid,
+                    username: toolUtil.storageGet('username')
+                },
+                rules:{
+                    title: [{
+                        required: true,
+                        message: '请输入标题',
+                        trigger: 'blur'
+                    }, ],
+                    content: [{
+                        required: true,
+                        message: '请输入内容',
+                        trigger: 'blur'
+                    }, ],
+                },
+                formVisible:false,
+                formTitle:'',
+                myType:false,   //判断是否调我的发布列表
+                detailVisible:false,
+                detailForm:{},
+                commentForm:{   //评论
+                    content: '',
+                    parentid: '',
+                    userid: '',
+                    username: '',
+                    avatarurl: '',
+                },
+                commentVisible:false,
+            }
+        },
+        created(){
+            if (toolUtil.getUrlParamsByKey("centerType")) {
+                this.centerType = true
+            }
+            if(toolUtil.getUrlParamsByKey("myType")){
+                this.myType = true
+            }
+            this.userid = toolUtil.storageGet('userid')
+            this.getList()
+        },
+        methods: {
+            //权限验证
+            btnAuth(e,a){
+                return toolUtil.isAuth(e, a)
+            },
+            currentChange(page){
+                this.listQuery.page = page
+                this.getList()
+            },
+            searchClick(){
+                this.listQuery.page = 1
+                this.getList()
+            },
+            getList(){
+                this.listLoading = true
+                let params = this.myType ? JSON.parse(JSON.stringify(this.myListQuery)) : JSON.parse(JSON.stringify(this.listQuery))
+                if (this.searchQuery.title && this.searchQuery.title != '') {
+                    params['title'] = `%${this.searchQuery.title}%`
+                }
+                http.get(`forum/${this.myType?'page':'flist'}`,{params}).then(res=>{
+                    this.listLoading = false
+                    this.list = res.data.data.list
+                    this.total = res.data.data.total
+                })
+            },
+            resetForm(){
+                this.form = {
+                    title: '',
+                    isdone: '开放',
+                    content: '',
+                    parentid: 0,
+                    userid: this.userid,
+                    username: toolUtil.storageGet('username')
+                }
+            },
+            //点击发布新贴
+            addClick(){
+                this.resetForm()
+                this.formTitle = '发布新帖'
+                this.formVisible = true
+            },
+            //点击修改帖子
+            editClick(id){
+                if (id) {
+                    http.get(`forum/detail/${id}`).then(res=>{
+                        this.form = res.data.data
+                        this.formTitle = '修改帖子'
+                        this.formVisible = true
+                    })
+                }
+            },
+            //帖子内容回调
+            contentChange(e){
+                this.form.content = e
+            },
+            //详情
+            detailClick(id){
+                http.get(`forum/list/${id}`).then(res=>{
+                    this.detailForm = res.data.data
+                    this.detailVisible = true
+                })
+            },
+            //删除
+            delClick(id){
+                this.$confirm(`是否删除选中帖子`, '提示', {
+                    confirmButtonText: '是',
+                    cancelButtonText: '否',
+                    type: 'warning',
+                }).then(()=>{
+                    http.post(`forum/delete`,[id]).then(res=>{
+                        this.$message.success('删除成功')
+                        this.getList()
+                    })
+                })
+            },
+            //发布帖子
+            save(){
+                this.$refs.formRef.validate((valid)=>{
+                    if(!valid) return
+                    http.post(`forum/${this.form.id?'update':'add'}`,this.form).then(res=>{
+                        this.$message.success(`${this.form.id?'修改':'发布'}成功`)
+                        this.getList()
+                        this.formVisible = false
+                    })
+                })
+            },
+            //重置评论
+            resetCommentForm(){
+                let headportrait = toolUtil.storageGet('headportrait')
+                this.commentForm = {
+                    content: '',
+                    parentid: '',
+                    userid: toolUtil.storageGet('userid'),
+                    username: toolUtil.storageGet('username'),
+                    avatarurl: headportrait ? headportrait : '',
+                }
+            },
+            //发表评论
+            commentClick(){
+                if(!toolUtil.storageGet("Token")){
+                    return window.open(baseUrl+"client/page/login.html?func="+encodeURIComponent("window.close()"))
+                }
+                this.resetCommentForm()
+                this.commentForm.parentid = this.detailForm.id
+                this.commentVisible = true
+            },
+            //评论内容回调
+            commentChange(e){
+                this.commentForm.content = e
+            },
+            //发表保存
+            commentSave(){
+                if(this.commentForm.content=='' || this.commentForm.content=="<p><br></p>"){
+                    return this.$message.error('请输入内容')
+                }
+                let sensitiveWords = "";
+                let sensitiveWordsArr = [];
+                if(sensitiveWords) {
+                    sensitiveWordsArr = sensitiveWords.split(",");
+                }
+                for(var i=0; i<sensitiveWordsArr.length; i++){
+                    //全局替换
+                    var reg = new RegExp(sensitiveWordsArr[i],"g");
+                    //判断内容中是否包括敏感词
+                    if (this.commentForm.content.indexOf(sensitiveWordsArr[i]) > -1) {
+                        // 将敏感词替换为 **
+                        this.commentForm.content = this.commentForm.content.replace(reg,"**");
+                    }
+                }
+                http.post('forum/add',this.commentForm).then(res=>{
+                    this.$message.success(`发表成功`)
+                    this.detailClick(this.detailForm.id)
+                    this.commentVisible = false
+                })
+            },
+            //评论删除
+            commentDelClick(id){
+                this.$confirm(`是否删除选中评论`, '提示', {
+                    confirmButtonText: '是',
+                    cancelButtonText: '否',
+                    type: 'warning',
+                }).then(()=>{
+                    http.post(`forum/delete`,[id]).then(res=>{
+                        this.$message.success('删除成功')
+                        this.detailClick(this.detailForm.id)
+                    })
+                })
+            },
+            commentReplyClick(id){
+                this.resetCommentForm()
+                this.commentForm.parentid = id
+                this.commentVisible = true
+            },
+        }
+    })
+</script>
+<script src="../../static/modules/wangeditor/index.min.js"></script>
+<script src="../../components/myEditor.js"></script>
+<link rel="stylesheet" href="../../static/modules/wangeditor/style.css"></link>
+<style>
+
+.el-main {
+    padding: 0 0 30px;
+    background: #edeef0;
+}
+
+
+.page-swiper{
+   width: var(--body-width);
+   margin: 10px auto 14px;
+}
+
+.swiper-wrapper{
+   margin: 10px auto 0;
+   padding:0;
+}
+.swiper-wrapper .swiper-slide .item{
+   width: var(--body-width);
+   margin: 10px auto 14px;
+}
+.swiper-wrapper .swiper-slide .item img{
+   width:100%;
+   height:400px;
+   object-fit:cover;
+}
+
+.swiper-pagination{ margin-bottom:15px; }
+.swiper-pagination span{ width:8px; height:8px; background:var(--swiper-theme-color); border-radius:100%; }
+
+
+.content-box {
+    width: var(--body-width);
+    margin: 30px auto;
+    padding:0px 30px 30px;
+    position: relative;
+    background: #fff;
+    border-radius: 0px;
+}
+
+
+.content-box .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #edeef0;
+    height: 60px;
+}
+
+.content-box .header .el-breadcrumb{
+}
+
+.content-box .header .el-button{
+    order:2;
+}
+
+
+.forumList{
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-gap: 20px 20px;
+}
+
+
+.forumList .forum {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 10px;
+    border: 1px solid #edeef0;
+    height: 44px;
+    border-radius:4px;
+}
+.forumList .forum:hover {
+    background: none;
+}
+.forumList .title {
+    flex: 1;
+    width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.forumList .user {
+    margin-left: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.forumList .el-image {
+    width: 32px;
+    height: 32px;
+    margin-right: 10px;
+    border-radius: 50%;
+}
+.forumList .time {
+    margin-left: 20px;
+}
+.forumList .options-row {
+    margin-left: 20px;
+}
+
+.forumList .options-row .edit{
+    color: #fff;
+    background: var(--button-background);
+    border-color: var(--button-border-color);
+}
+.forumList .options-row .edit:hover{
+    opacity: 0.8;
+}
+
+.forumList .options-row .del{
+    color: #fff;
+    background: #f93636;
+    border-color: #f93636
+}
+.forumList .options-row .del:hover{
+    opacity: 0.8;
+}
+.pagination-row {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.forum-detail>.title {
+    text-align: center;
+    font-size: 18px;
+    font-weight:600;
+    color: #333;
+}
+.forum-detail .user {
+    text-align: center;
+    margin-top: 10px;
+}
+.forum-detail .time {
+    text-align: center;
+    margin-top: 6px;
+}
+.forum-detail>.content {
+    font-size: 16px;
+}
+.forum-detail+.options {
+    text-align: right;
+    margin-top: 20px;
+}
+.comment-area {
+    margin-top: 20px;
+}
+.comment-area .box-title {
+    line-height: 50px;
+}
+.comment-item1 {
+    border-top: 1px solid #edeef0;
+    padding: 20px;
+}
+.comment-item1>.comment-user .el-image {
+    width: 50px;
+    height: 50px;
+    margin-right: 10px;
+    border-radius: 50%;
+}
+.comment-item1>.comment-user {
+    display: flex;
+    align-items: center;
+}
+.comment-item1>.content {
+    padding-left: 40px;
+    margin-top: 20px;
+}
+.comment-item1>.options {
+    display: flex;
+    flex-direction: row-reverse;
+}
+.comment-item1>.options {
+}
+.option {
+    padding: 10px;
+    cursor: pointer;
+}
+.option.delete {
+    color: #aa363d;
+}
+.option.reply {
+    color: #409eff;
+}
+
+.comment-list2 {
+    margin-left: 40px;
+    border-top: 0px solid #edeef0;
+    background-color: #f8f8f8;
+    padding: 0 20px;
+}
+.comment-list2::before {
+    content: "回复列表";
+    line-height: 40px;
+    border-bottom: 1px solid #ccc;
+    width: 100%;
+    display: block;
+}
+.comment-item2 {
+    border-top: 1px solid #ddd;
+    padding-top: 10px;
+}
+.comment-item2:first-child {
+    border-top: none;
+}
+.comment-item2>.comment-user .el-image {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+.comment-item2>.comment-user {
+    display: flex;
+    align-items: center;
+}
+.comment-item2>.content {
+    margin-top: 10px;
+    padding-left: 20px;
+}
+.comment-item2>.options {
+    display: flex;
+    flex-direction: row-reverse;
+}
+.releaseDialog .el-form {
+    display: flex;
+    flex-wrap: wrap;
+}
+.releaseDialog .title {
+    width: 50%;
+}
+
+.options .el-button--success {
+    color: #fff;
+    background: var(--button-background);
+    border-color: var(--button-border-color);
+}
+.options .el-button--success:focus,.options .el-button--success:hover {
+    opacity: 0.8;
+}
+
+</style>
+</html>
